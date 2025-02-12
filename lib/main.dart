@@ -74,10 +74,13 @@ class _CommandInterfaceState extends State<CommandInterface> {
       final cmd = _commandController.text.trim();
       if (cmd.isEmpty) return;
 
-      // Combine directory change with the command
+      // Construct the Python command with the user input
+      final pythonCommand = 'python remoteexec.py --username memetic --password labor+da -- "' + cmd + '" | python extract2json.py | python makeobjects2json.py';
+
+      // Combine with directory change if directory is specified
       final fullCommand = dir.isNotEmpty 
-          ? 'cd "${dir}" ; ${cmd}'
-          : cmd;
+          ? 'cd "${dir}" ; ${pythonCommand}'
+          : pythonCommand;
 
       final process = await Process.run(
         'powershell.exe',
