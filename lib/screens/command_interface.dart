@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/json_processor.dart';
+import '../models/topic.dart';
+import '../models/conf.dart';
+import '../widgets/topics_view.dart';
+import '../widgets/posts_view.dart';
+import '../widgets/conf_view.dart';
 
 class CommandInterface extends StatefulWidget {
   const CommandInterface({super.key});
@@ -10,7 +16,7 @@ class CommandInterface extends StatefulWidget {
   State<CommandInterface> createState() => _CommandInterfaceState();
 }
 
-class _CommandInterfaceState extends State<CommandInterface> {
+class _CommandInterfaceState extends State<CommandInterface> with TickerProviderStateMixin {
   final TextEditingController _commandController = TextEditingController();
   final TextEditingController _outputController = TextEditingController();
   final TextEditingController _directoryController = TextEditingController();
@@ -19,10 +25,47 @@ class _CommandInterfaceState extends State<CommandInterface> {
   
   static const String _directorySaveKey = 'last_directory';
   
+  late TabController _tabController;
+  List<Topic> _currentTopics = [];
+  List<Conf> _currentConfs = [];
+  Topic? _selectedTopic;
+  Conf? _selectedConf;
+  
   @override
   void initState() {
     super.initState();
     _loadSavedDirectory();
+    _setupKeyboardListeners();
+    _createTabController();
+  }
+
+  void _createTabController() {
+    _tabController = TabController(
+      length: _useConfs ? 3 : 2,
+      vsync: this,
+    );
+  }
+
+  void _handleConfsChanged(bool? value) {
+    if (value == _useConfs) return;
+    
+    // Dispose current controller
+    _tabController.dispose();
+    
+    setState(() {
+      _useConfs = value ?? false;
+      _selectedConf = null;
+      _currentTopics = [];
+      _selectedTopic = null;
+      // Create new controller immediately in setState
+      _tabController = TabController(
+        length: _useConfs ? 3 : 2,
+        vsync: this,
+      );
+    });
+  }
+
+  void _setupKeyboardListeners() {
     _focusNode.onKeyEvent = (node, event) {
       if (event is KeyDownEvent) {
         final isControlPressed = HardwareKeyboard.instance.isControlPressed;
@@ -104,6 +147,20 @@ class _CommandInterfaceState extends State<CommandInterface> {
           _outputController.text += process.stderr.toString();
         }
         _outputController.text += '\n';
+        
+        try {
+          if (_useConfs) {
+            _currentConfs = JsonProcessor.processConfOutput(process.stdout.toString());
+            _selectedConf = null;
+            _currentTopics = [];
+            _selectedTopic = null;
+          } else {
+            _currentTopics = JsonProcessor.processCommandOutput(process.stdout.toString());
+            _selectedTopic = null;
+          }
+        } catch (e) {
+          _outputController.text += 'Error processing data: $e\n\n';
+        }
       });
       
       _commandController.clear();
@@ -113,6 +170,20 @@ class _CommandInterfaceState extends State<CommandInterface> {
         _outputController.text += 'Error: $e\n\n';
       });
     }
+  }
+
+  void _handleTopicSelected(Topic topic) {
+    setState(() {
+      _selectedTopic = topic;
+    });
+  }
+
+  void _handleConfSelected(Conf conf) {
+    setState(() {
+      _selectedConf = conf;
+      _currentTopics = conf.topics;
+      _tabController.animateTo(1); // Switch to Topics tab
+    });
   }
 
   @override
@@ -178,11 +249,7 @@ class _CommandInterfaceState extends State<CommandInterface> {
                     const Text('Confs '),
                     Checkbox(
                       value: _useConfs,
-                      onChanged: (bool? value) {
-                        setState(() {
-                          _useConfs = value ?? false;
-                        });
-                      },
+                      onChanged: _handleConfsChanged,
                     ),
                   ],
                 ),
@@ -202,28 +269,85 @@ class _CommandInterfaceState extends State<CommandInterface> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            TabBar(
+              controller: _tabController,
+              tabs: _useConfs 
+                  ? const [
+                      Tab(text: 'Conferences'),
+                      Tab(text: 'Topics'),
+                      Tab(text: 'Debug'),
+                    ]
+                  : const [
+                      Tab(text: 'Topics'),
+                      Tab(text: 'Debug'),
+                    ],
+            ),
             Expanded(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minHeight: 400.0,
-                ),
-                child: TextField(
-                  controller: _outputController,
-                  maxLines: null,
-                  readOnly: true,
-                  expands: true,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Color(0xFFF5F5F5),
-                    contentPadding: EdgeInsets.all(8),
-                    isCollapsed: true,
-                  ),
-                ),
+              child: TabBarView(
+                controller: _tabController,
+                children: _useConfs
+                    ? [
+                        // Conferences tab
+                        ConfView(
+                          confs: _currentConfs,
+                          onConfSelected: _handleConfSelected,
+                        ),
+                        // Topics tab
+                        _selectedConf == null
+                            ? const Center(child: Text('Select a conference to view topics'))
+                            : TopicsView(
+                                topics: _currentTopics,
+                                onTopicSelected: _handleTopicSelected,
+                              ),
+                        // Debug tab
+                        _buildDebugView(),
+                      ]
+                    : [
+                        // Topics tab
+                        _selectedTopic == null
+                            ? TopicsView(
+                                topics: _currentTopics,
+                                onTopicSelected: _handleTopicSelected,
+                              )
+                            : Column(
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: () => setState(() => _selectedTopic = null),
+                                    child: const Text('Back to Topics'),
+                                  ),
+                                  Expanded(
+                                    child: PostsView(topic: _selectedTopic!),
+                                  ),
+                                ],
+                              ),
+                        // Debug tab
+                        _buildDebugView(),
+                      ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDebugView() {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        minHeight: 400.0,
+      ),
+      child: TextField(
+        controller: _outputController,
+        maxLines: null,
+        readOnly: true,
+        expands: true,
+        decoration: const InputDecoration(
+          border: OutlineInputBorder(),
+          filled: true,
+          fillColor: Color(0xFFF5F5F5),
+          contentPadding: EdgeInsets.all(8),
+          isCollapsed: true,
         ),
       ),
     );
@@ -235,6 +359,7 @@ class _CommandInterfaceState extends State<CommandInterface> {
     _outputController.dispose();
     _directoryController.dispose();
     _focusNode.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 }
