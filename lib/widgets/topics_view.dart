@@ -13,35 +13,40 @@ class TopicsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: topics.length,
-      itemBuilder: (context, index) {
-        final topic = topics[index];
-        return GestureDetector(
-          onDoubleTap: () => onTopicSelected(topic),
-          child: Card(
-            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-            child: ListTile(
-              title: RichText(
-                text: TextSpan(
-                  style: DefaultTextStyle.of(context).style,
-                  children: [
-                    TextSpan(
-                      text: '[${topic.conf}] ',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: ListView.builder(
+          itemCount: topics.length,
+          itemBuilder: (context, index) {
+            final topic = topics[index];
+            return GestureDetector(
+              onDoubleTap: () => onTopicSelected(topic),
+              child: Card(
+                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                child: ListTile(
+                  title: RichText(
+                    text: TextSpan(
+                      style: DefaultTextStyle.of(context).style,
+                      children: [
+                        TextSpan(
+                          text: '[${topic.conf}] ',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        TextSpan(text: topic.title),
+                      ],
                     ),
-                    TextSpan(text: topic.title),
-                  ],
+                  ),
+                  subtitle: Text('${topic.posts.length} posts'),
                 ),
               ),
-              subtitle: Text('${topic.posts.length} posts'),
-            ),
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 } 

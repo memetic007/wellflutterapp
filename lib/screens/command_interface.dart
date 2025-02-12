@@ -34,11 +34,15 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
   // Add this property to track if we're in "locked" mode after Submit
   bool _isModeLocked = false;
   
+  // Add property to track pending conf mode
+  bool _pendingConfsMode = false;
+  
   @override
   void initState() {
     super.initState();
     _loadSavedDirectory();
     _setupKeyboardListeners();
+    _pendingConfsMode = _useConfs;  // Initialize pending mode
     _createTabController();
   }
 
@@ -50,21 +54,9 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
   }
 
   void _handleConfsChanged(bool? value) {
-    if (_isModeLocked) return;  // Ignore changes when locked
-    if (value == _useConfs) return;
-    
-    // Dispose current controller
-    _tabController.dispose();
-    
     setState(() {
-      _useConfs = value ?? false;
-      _selectedConf = null;
-      _currentTopics = [];
-      _selectedTopic = null;
-      _tabController = TabController(
-        length: _useConfs ? 3 : 2,
-        vsync: this,
-      );
+      // Only update the pending mode, actual mode changes on submit
+      _pendingConfsMode = value ?? false;
     });
   }
 
@@ -120,6 +112,23 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
       final cmd = _commandController.text.trim();
       if (cmd.isEmpty) return;
 
+      // Update actual mode from pending mode and recreate controller if needed
+      if (_useConfs != _pendingConfsMode) {
+        _tabController.dispose();
+        setState(() {
+          _useConfs = _pendingConfsMode;
+          _selectedConf = null;
+          _currentTopics = [];
+          _selectedTopic = null;
+          _tabController = TabController(
+            length: _useConfs ? 3 : 2,
+            vsync: this,
+          );
+          // Clear debug output when switching modes
+          _outputController.clear();
+        });
+      }
+
       // Lock the mode when executing command
       setState(() {
         _isModeLocked = true;
@@ -149,6 +158,8 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
       );
 
       setState(() {
+        // Clear previous output before showing new output
+        _outputController.clear();
         _outputController.text += 'PS> $fullCommand\n';
         _outputController.text += process.stdout.toString();
         if (process.stderr.toString().isNotEmpty) {
@@ -170,8 +181,6 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
           _outputController.text += 'Error processing data: $e\n\n';
         }
       });
-      
-      _commandController.clear();
     } catch (e) {
       setState(() {
         _outputController.text += 'PS> ${_commandController.text}\n';
@@ -236,10 +245,17 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
                     height: 40,
                     child: TextField(
                       controller: _commandController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Enter command...',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        // Add clear button
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _commandController.clear();
+                          },
+                        ),
                       ),
                       onSubmitted: (_) => _executeCommand(),
                       enableInteractiveSelection: true,
@@ -256,8 +272,8 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
                   children: [
                     const Text('Confs '),
                     Checkbox(
-                      value: _useConfs,
-                      onChanged: _isModeLocked ? null : _handleConfsChanged,  // Disable when locked
+                      value: _pendingConfsMode,  // Show pending mode in checkbox
+                      onChanged: _handleConfsChanged,  // Always allow changes
                     ),
                   ],
                 ),
@@ -301,13 +317,25 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
                           confs: _currentConfs,
                           onConfSelected: _handleConfSelected,
                         ),
-                        // Topics tab
+                        // Topics tab (now matches 2-tab mode behavior)
                         _selectedConf == null
                             ? const Center(child: Text('Select a conference to view topics'))
-                            : TopicsView(
-                                topics: _currentTopics,
-                                onTopicSelected: _handleTopicSelected,
-                              ),
+                            : _selectedTopic == null
+                                ? TopicsView(
+                                    topics: _currentTopics,
+                                    onTopicSelected: _handleTopicSelected,
+                                  )
+                                : Column(
+                                    children: [
+                                      ElevatedButton(
+                                        onPressed: () => setState(() => _selectedTopic = null),
+                                        child: const Text('Back to Topics'),
+                                      ),
+                                      Expanded(
+                                        child: PostsView(topic: _selectedTopic!),
+                                      ),
+                                    ],
+                                  ),
                         // Debug tab
                         _buildDebugView(),
                       ]
