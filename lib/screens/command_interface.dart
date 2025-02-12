@@ -31,6 +31,9 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
   Topic? _selectedTopic;
   Conf? _selectedConf;
   
+  // Add this property to track if we're in "locked" mode after Submit
+  bool _isModeLocked = false;
+  
   @override
   void initState() {
     super.initState();
@@ -47,6 +50,7 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
   }
 
   void _handleConfsChanged(bool? value) {
+    if (_isModeLocked) return;  // Ignore changes when locked
     if (value == _useConfs) return;
     
     // Dispose current controller
@@ -57,7 +61,6 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
       _selectedConf = null;
       _currentTopics = [];
       _selectedTopic = null;
-      // Create new controller immediately in setState
       _tabController = TabController(
         length: _useConfs ? 3 : 2,
         vsync: this,
@@ -116,6 +119,11 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
       final dir = _directoryController.text.trim();
       final cmd = _commandController.text.trim();
       if (cmd.isEmpty) return;
+
+      // Lock the mode when executing command
+      setState(() {
+        _isModeLocked = true;
+      });
 
       if (dir.isNotEmpty) {
         await _saveDirectory();
@@ -249,7 +257,7 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
                     const Text('Confs '),
                     Checkbox(
                       value: _useConfs,
-                      onChanged: _handleConfsChanged,
+                      onChanged: _isModeLocked ? null : _handleConfsChanged,  // Disable when locked
                     ),
                   ],
                 ),
