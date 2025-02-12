@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'WELL App Prototype',
+      title: 'WELL App Prototype v 0.0.2',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -34,9 +35,12 @@ class _CommandInterfaceState extends State<CommandInterface> {
   final TextEditingController _directoryController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   
+  static const String _directorySaveKey = 'last_directory';
+  
   @override
   void initState() {
     super.initState();
+    _loadSavedDirectory();
     _focusNode.onKeyEvent = (node, event) {
       if (event is KeyDownEvent) {
         // Check if Ctrl is pressed using HardwareKeyboard
@@ -68,18 +72,38 @@ class _CommandInterfaceState extends State<CommandInterface> {
     };
   }
 
+  Future<void> _loadSavedDirectory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedDirectory = prefs.getString(_directorySaveKey);
+    if (savedDirectory != null) {
+      setState(() {
+        _directoryController.text = savedDirectory;
+      });
+    }
+  }
+
+  Future<void> _saveDirectory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_directorySaveKey, _directoryController.text.trim());
+  }
+
   Future<void> _executeCommand() async {
     try {
       final dir = _directoryController.text.trim();
       final cmd = _commandController.text.trim();
       if (cmd.isEmpty) return;
 
+      // Save directory when command is executed
+      if (dir.isNotEmpty) {
+        await _saveDirectory();
+      }
+
       // Construct the Python command with the user input
-      final pythonCommand = 'python remoteexec.py --username memetic --password labor+da -- "' + cmd + '" | python extract2json.py | python makeobjects2json.py';
+      final pythonCommand = 'python remoteexec.py --username memetic --password labor+da -- "$cmd" | python extract2json.py | python makeobjects2json.py';
 
       // Combine with directory change if directory is specified
       final fullCommand = dir.isNotEmpty 
-          ? 'cd "${dir}" ; ${pythonCommand}'
+          ? 'cd "$dir" ; $pythonCommand'
           : pythonCommand;
 
       final process = await Process.run(
@@ -110,54 +134,64 @@ class _CommandInterfaceState extends State<CommandInterface> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('WELL App Prototype'),
+        title: const Text('WELL App Prototype v 0.0.2'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 4.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
                 const Text('Directory: ', 
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 Expanded(
-                  child: TextField(
-                    controller: _directoryController,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter directory path...',
-                      border: OutlineInputBorder(),
+                  child: SizedBox(
+                    height: 40,
+                    child: TextField(
+                      controller: _directoryController,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter directory path...',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _commandController,
-                    focusNode: _focusNode,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter command...',
-                      border: OutlineInputBorder(),
+                  child: SizedBox(
+                    height: 40,
+                    child: TextField(
+                      controller: _commandController,
+                      focusNode: _focusNode,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter command...',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      ),
+                      onSubmitted: (_) => _executeCommand(),
+                      enableInteractiveSelection: true,
+                      contextMenuBuilder: (context, editableTextState) {
+                        return AdaptiveTextSelectionToolbar.editableText(
+                          editableTextState: editableTextState,
+                        );
+                      },
                     ),
-                    onSubmitted: (_) => _executeCommand(),
-                    enableInteractiveSelection: true,
-                    contextMenuBuilder: (context, editableTextState) {
-                      return AdaptiveTextSelectionToolbar.editableText(
-                        editableTextState: editableTextState,
-                      );
-                    },
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: _executeCommand,
                   child: const Text('Submit'),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 ElevatedButton(
                   onPressed: () {
                     setState(() {
@@ -168,16 +202,24 @@ class _CommandInterfaceState extends State<CommandInterface> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Expanded(
-              child: TextField(
-                controller: _outputController,
-                maxLines: null,
-                readOnly: true,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F5),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: 400.0,
+                ),
+                child: TextField(
+                  controller: _outputController,
+                  maxLines: null,
+                  readOnly: true,
+                  expands: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Color(0xFFF5F5F5),
+                    contentPadding: EdgeInsets.all(8),
+                    isCollapsed: true,
+                  ),
                 ),
               ),
             ),
