@@ -8,9 +8,9 @@ class JsonProcessor {
     // Find the first '[' and last ']'
     final startIndex = output.indexOf('[');
     final endIndex = output.lastIndexOf(']');
-    
+
     if (startIndex == -1 || endIndex == -1 || startIndex >= endIndex) {
-      throw FormatException('Invalid JSON format in command output');
+      throw const FormatException('Invalid JSON format in command output');
     }
 
     // Extract the JSON string
@@ -37,16 +37,16 @@ class JsonProcessor {
             username: postJson['username'] as String,
             pseud: postJson['pseud'] as String,
           );
-          
+
           // Set ISO datetime
           post.datetime_iso8601 = postJson['datetime_iso8601'] as String;
-          
+
           // Add text entries
           final List<dynamic> textList = postJson['text'];
           for (var text in textList) {
             post.appendText(text as String);
           }
-          
+
           topic.addPost(post);
         }
 
@@ -61,9 +61,9 @@ class JsonProcessor {
     // Find the first '[' and last ']'
     final startIndex = output.indexOf('[');
     final endIndex = output.lastIndexOf(']');
-    
+
     if (startIndex == -1 || endIndex == -1 || startIndex >= endIndex) {
-      throw FormatException('Invalid JSON format in command output');
+      throw const FormatException('Invalid JSON format in command output');
     }
 
     // Extract the JSON string
@@ -99,17 +99,17 @@ class JsonProcessor {
               username: postJson['username'] as String,
               pseud: postJson['pseud'] as String,
             );
-            
+
             post.datetime_iso8601 = postJson['datetime_iso8601'] as String;
-            
+
             final List<dynamic> textList = postJson['text'];
             for (var text in textList) {
               post.appendText(text as String);
             }
-            
+
             topic.addPost(post);
           }
-          
+
           conf.addTopic(topic);
         }
 
@@ -119,4 +119,4 @@ class JsonProcessor {
       throw FormatException('Error parsing JSON: $e');
     }
   }
-} 
+}

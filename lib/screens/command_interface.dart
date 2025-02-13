@@ -8,6 +8,8 @@ import '../models/conf.dart';
 import '../widgets/topics_view.dart';
 import '../widgets/posts_view.dart';
 import '../widgets/conf_view.dart';
+import '../utils/credentials_manager.dart';
+import '../widgets/login_dialog.dart';
 
 class CommandInterface extends StatefulWidget {
   const CommandInterface({super.key});
@@ -16,34 +18,39 @@ class CommandInterface extends StatefulWidget {
   State<CommandInterface> createState() => _CommandInterfaceState();
 }
 
-class _CommandInterfaceState extends State<CommandInterface> with TickerProviderStateMixin {
+class _CommandInterfaceState extends State<CommandInterface>
+    with TickerProviderStateMixin {
   final TextEditingController _commandController = TextEditingController();
   final TextEditingController _outputController = TextEditingController();
   final TextEditingController _directoryController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   bool _useConfs = false;
-  
+
   static const String _directorySaveKey = 'last_directory';
-  
+
   late TabController _tabController;
   List<Topic> _currentTopics = [];
   List<Conf> _currentConfs = [];
   Topic? _selectedTopic;
   Conf? _selectedConf;
-  
+
   // Add this property to track if we're in "locked" mode after Submit
   bool _isModeLocked = false;
-  
+
   // Add property to track pending conf mode
   bool _pendingConfsMode = false;
-  
+
+  final _credentialsManager = CredentialsManager();
+  String? _currentUsername;
+
   @override
   void initState() {
     super.initState();
     _loadSavedDirectory();
     _setupKeyboardListeners();
-    _pendingConfsMode = _useConfs;  // Initialize pending mode
+    _pendingConfsMode = _useConfs; // Initialize pending mode
     _createTabController();
+    _checkCredentials();
   }
 
   void _createTabController() {
@@ -64,21 +71,25 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
     _focusNode.onKeyEvent = (node, event) {
       if (event is KeyDownEvent) {
         final isControlPressed = HardwareKeyboard.instance.isControlPressed;
-        
-        if (event.logicalKey == LogicalKeyboardKey.numpad1 && isControlPressed) {
+
+        if (event.logicalKey == LogicalKeyboardKey.numpad1 &&
+            isControlPressed) {
           _commandController.selection = TextSelection.fromPosition(
             TextPosition(offset: _commandController.text.length),
           );
           return KeyEventResult.handled;
-        } else if (event.logicalKey == LogicalKeyboardKey.numpad7 && isControlPressed) {
-          _commandController.selection = const TextSelection.collapsed(offset: 0);
+        } else if (event.logicalKey == LogicalKeyboardKey.numpad7 &&
+            isControlPressed) {
+          _commandController.selection =
+              const TextSelection.collapsed(offset: 0);
           return KeyEventResult.handled;
-        } else if (event.logicalKey == LogicalKeyboardKey.delete || 
-                  event.logicalKey == LogicalKeyboardKey.numpadDecimal) {
+        } else if (event.logicalKey == LogicalKeyboardKey.delete ||
+            event.logicalKey == LogicalKeyboardKey.numpadDecimal) {
           final selection = _commandController.selection;
           if (selection.start < _commandController.text.length) {
             final text = _commandController.text;
-            final newText = text.replaceRange(selection.start, selection.start + 1, '');
+            final newText =
+                text.replaceRange(selection.start, selection.start + 1, '');
             _commandController.value = TextEditingValue(
               text: newText,
               selection: TextSelection.collapsed(offset: selection.start),
@@ -106,8 +117,52 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
     await prefs.setString(_directorySaveKey, _directoryController.text.trim());
   }
 
+  Future<void> _checkCredentials() async {
+    if (!await _credentialsManager.hasCredentials()) {
+      await _showLoginDialog();
+    } else {
+      _currentUsername = await _credentialsManager.getUsername();
+      setState(() {});
+    }
+  }
+
+  Future<void> _showLoginDialog() async {
+    final currentUsername = await _credentialsManager.getUsername();
+    final currentPassword = await _credentialsManager.getPassword();
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      barrierDismissible: currentUsername != null,
+      builder: (context) => LoginDialog(
+        initialUsername: currentUsername,
+        initialPassword: currentPassword,
+      ),
+    );
+
+    if (result != null) {
+      await _credentialsManager.setCredentials(
+        result['username']!,
+        result['password']!,
+      );
+      setState(() {
+        _currentUsername = result['username'];
+      });
+    } else if (currentUsername == null) {
+      // If no credentials exist and user cancelled, show dialog again
+      await _showLoginDialog();
+    }
+  }
+
   Future<void> _executeCommand() async {
     try {
+      final username = await _credentialsManager.getUsername();
+      final password = await _credentialsManager.getPassword();
+
+      if (username == null || password == null) {
+        await _showLoginDialog();
+        return;
+      }
+
       final dir = _directoryController.text.trim();
       final cmd = _commandController.text.trim();
       if (cmd.isEmpty) return;
@@ -139,17 +194,17 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
       }
 
       // Modify the command based on checkbox state
-      final makeObjectsCommand = _useConfs 
+      final makeObjectsCommand = _useConfs
           ? 'python makeobjects2json.py -conf'
           : 'python makeobjects2json.py';
 
       // Construct the Python command with the user input
-      final pythonCommand = 'python remoteexec.py --username memetic --password labor+da -- "extract $cmd" | python extract2json.py | $makeObjectsCommand';
+      final pythonCommand =
+          'python remoteexec.py --username $username --password $password -- "extract $cmd" | python extract2json.py | $makeObjectsCommand';
 
       // Combine with directory change if directory is specified
-      final fullCommand = dir.isNotEmpty 
-          ? 'cd "$dir" ; $pythonCommand'
-          : pythonCommand;
+      final fullCommand =
+          dir.isNotEmpty ? 'cd "$dir" ; $pythonCommand' : pythonCommand;
 
       final process = await Process.run(
         'powershell.exe',
@@ -166,15 +221,17 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
           _outputController.text += process.stderr.toString();
         }
         _outputController.text += '\n';
-        
+
         try {
           if (_useConfs) {
-            _currentConfs = JsonProcessor.processConfOutput(process.stdout.toString());
+            _currentConfs =
+                JsonProcessor.processConfOutput(process.stdout.toString());
             _selectedConf = null;
             _currentTopics = [];
             _selectedTopic = null;
           } else {
-            _currentTopics = JsonProcessor.processCommandOutput(process.stdout.toString());
+            _currentTopics =
+                JsonProcessor.processCommandOutput(process.stdout.toString());
             _selectedTopic = null;
           }
         } catch (e) {
@@ -208,6 +265,31 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
     return Scaffold(
       appBar: AppBar(
         title: const Text('WELL App Prototype v 0.0.2'),
+        actions: [
+          if (_currentUsername != null)
+            PopupMenuButton<String>(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  _currentUsername!,
+                  style: const TextStyle(
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _showLoginDialog();
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Text('Edit Username/Password'),
+                ),
+              ],
+            ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 4.0),
@@ -218,7 +300,8 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
             // Directory input row
             Row(
               children: [
-                const Text('Directory: ', 
+                const Text(
+                  'Directory: ',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 Expanded(
@@ -229,7 +312,8 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
                       decoration: const InputDecoration(
                         hintText: 'Enter directory path...',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                       ),
                     ),
                   ),
@@ -248,7 +332,8 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
                       decoration: InputDecoration(
                         hintText: 'Enter command...',
                         border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 8),
                         // Add clear button
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.clear, size: 18),
@@ -272,8 +357,8 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
                   children: [
                     const Text('Confs '),
                     Checkbox(
-                      value: _pendingConfsMode,  // Show pending mode in checkbox
-                      onChanged: _handleConfsChanged,  // Always allow changes
+                      value: _pendingConfsMode, // Show pending mode in checkbox
+                      onChanged: _handleConfsChanged, // Always allow changes
                     ),
                   ],
                 ),
@@ -296,7 +381,7 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
             const SizedBox(height: 8),
             TabBar(
               controller: _tabController,
-              tabs: _useConfs 
+              tabs: _useConfs
                   ? const [
                       Tab(text: 'Conferences'),
                       Tab(text: 'Topics'),
@@ -319,7 +404,9 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
                         ),
                         // Topics tab (now matches 2-tab mode behavior)
                         _selectedConf == null
-                            ? const Center(child: Text('Select a conference to view topics'))
+                            ? const Center(
+                                child:
+                                    Text('Select a conference to view topics'))
                             : _selectedTopic == null
                                 ? TopicsView(
                                     topics: _currentTopics,
@@ -328,11 +415,13 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
                                 : Column(
                                     children: [
                                       ElevatedButton(
-                                        onPressed: () => setState(() => _selectedTopic = null),
+                                        onPressed: () => setState(
+                                            () => _selectedTopic = null),
                                         child: const Text('Back to Topics'),
                                       ),
                                       Expanded(
-                                        child: PostsView(topic: _selectedTopic!),
+                                        child:
+                                            PostsView(topic: _selectedTopic!),
                                       ),
                                     ],
                                   ),
@@ -349,7 +438,8 @@ class _CommandInterfaceState extends State<CommandInterface> with TickerProvider
                             : Column(
                                 children: [
                                   ElevatedButton(
-                                    onPressed: () => setState(() => _selectedTopic = null),
+                                    onPressed: () =>
+                                        setState(() => _selectedTopic = null),
                                     child: const Text('Back to Topics'),
                                   ),
                                   Expanded(
