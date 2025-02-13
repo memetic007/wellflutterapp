@@ -34,111 +34,109 @@ class TopicPostWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 800),
-        child: Card(
-          margin: const EdgeInsets.all(8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Top bar
-              Container(
-                padding: const EdgeInsets.all(8.0),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  border: Border(
-                    bottom: BorderSide(color: Colors.grey[300]!),
-                  ),
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 800),
+      child: Card(
+        margin: const EdgeInsets.all(8.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Top bar
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey[300]!),
                 ),
-                child: Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 800),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: RichText(
-                            text: TextSpan(
-                              style: DefaultTextStyle.of(context).style,
-                              children: [
-                                TextSpan(
-                                  text: '[${topic.conf}] ',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                  ),
+              ),
+              child: Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            style: DefaultTextStyle.of(context).style,
+                            children: [
+                              TextSpan(
+                                text: '[${topic.conf}] ',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue,
                                 ),
-                                TextSpan(text: topic.title),
-                              ],
-                            ),
+                              ),
+                              TextSpan(text: topic.title),
+                            ],
                           ),
                         ),
-                        Row(
-                          children: [
-                            if (onPreviousPressed != null)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: ElevatedButton(
-                                  onPressed: onPreviousPressed,
-                                  child: const Text('Previous'),
-                                ),
+                      ),
+                      Row(
+                        children: [
+                          if (onPreviousPressed != null)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: ElevatedButton(
+                                onPressed: onPreviousPressed,
+                                child: const Text('Previous'),
                               ),
-                            if (onNextPressed != null)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 16.0),
-                                child: ElevatedButton(
-                                  onPressed: onNextPressed,
-                                  child: const Text('Next'),
-                                ),
-                              ),
-                            const Text('Forget'),
-                            Checkbox(
-                              value: false,
-                              onChanged: (_) =>
-                                  _showMessage(context, 'Forget clicked'),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          if (onNextPressed != null)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 16.0),
+                              child: ElevatedButton(
+                                onPressed: onNextPressed,
+                                child: const Text('Next'),
+                              ),
+                            ),
+                          const Text('Forget'),
+                          Checkbox(
+                            value: false,
+                            onChanged: (_) =>
+                                _showMessage(context, 'Forget clicked'),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
-              // Modified posts content section
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 800),
-                    child: _buildPostsText(),
-                  ),
+            ),
+            // Modified posts content section
+            Flexible(
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(16.0),
+                  child: _buildPostsText(),
                 ),
               ),
-              // Bottom bar
-              Container(
-                padding: const EdgeInsets.all(8.0),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Colors.grey[300]!),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () => _showMessage(context, 'Reply pressed'),
-                      child: const Text('Reply'),
-                    ),
-                    const SizedBox(width: 8), // Add spacing between buttons
-                    ElevatedButton(
-                      onPressed: () => _showMessage(context, 'Update pressed'),
-                      child: const Text('Refresh'),
-                    ),
-                  ],
+            ),
+            // Bottom bar
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Colors.grey[300]!),
                 ),
               ),
-            ],
-          ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => _showMessage(context, 'Reply pressed'),
+                    child: const Text('Reply'),
+                  ),
+                  const SizedBox(width: 8), // Add spacing between buttons
+                  ElevatedButton(
+                    onPressed: () => _showMessage(context, 'Update pressed'),
+                    child: const Text('Refresh'),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -151,7 +149,9 @@ class TopicPostWidget extends StatelessWidget {
     const String textAreaPrefix = '   '; // 3 spaces for text
 
     String wrapLine(String line) {
-      if (line.length <= maxLineLength) {
+      const int maxContentLength = 77; // 80 - 3 spaces for prefix
+
+      if (line.length <= maxContentLength) {
         return textAreaPrefix + line;
       }
 
@@ -162,7 +162,7 @@ class TopicPostWidget extends StatelessWidget {
       for (final word in words) {
         if (currentLine.isEmpty) {
           currentLine = word;
-        } else if ((currentLine + ' ' + word).length <= maxLineLength) {
+        } else if ((currentLine + ' ' + word).length <= maxContentLength) {
           currentLine += ' ' + word;
         } else {
           wrappedLines.add(textAreaPrefix + currentLine);
