@@ -24,21 +24,15 @@ class _CommandInterfaceState extends State<CommandInterface>
   final TextEditingController _outputController = TextEditingController();
   final TextEditingController _directoryController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  bool _useConfs = false;
 
   static const String _directorySaveKey = 'last_directory';
+  static const String _commandSaveKey = 'last_command';
 
   late TabController _tabController;
   List<Topic> _currentTopics = [];
   List<Conf> _currentConfs = [];
   Topic? _selectedTopic;
   Conf? _selectedConf;
-
-  // Add this property to track if we're in "locked" mode after Submit
-  bool _isModeLocked = false;
-
-  // Add property to track pending conf mode
-  bool _pendingConfsMode = false;
 
   final _credentialsManager = CredentialsManager();
   String? _currentUsername;
@@ -47,24 +41,17 @@ class _CommandInterfaceState extends State<CommandInterface>
   void initState() {
     super.initState();
     _loadSavedDirectory();
+    _loadSavedCommand();
     _setupKeyboardListeners();
-    _pendingConfsMode = _useConfs; // Initialize pending mode
     _createTabController();
     _checkCredentials();
   }
 
   void _createTabController() {
     _tabController = TabController(
-      length: _useConfs ? 3 : 2,
+      length: 3, // Always 3 tabs now
       vsync: this,
     );
-  }
-
-  void _handleConfsChanged(bool? value) {
-    setState(() {
-      // Only update the pending mode, actual mode changes on submit
-      _pendingConfsMode = value ?? false;
-    });
   }
 
   void _setupKeyboardListeners() {
@@ -117,6 +104,21 @@ class _CommandInterfaceState extends State<CommandInterface>
     await prefs.setString(_directorySaveKey, _directoryController.text.trim());
   }
 
+  Future<void> _loadSavedCommand() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedCommand = prefs.getString(_commandSaveKey);
+    if (savedCommand != null) {
+      setState(() {
+        _commandController.text = savedCommand;
+      });
+    }
+  }
+
+  Future<void> _saveCommand() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_commandSaveKey, _commandController.text.trim());
+  }
+
   Future<void> _checkCredentials() async {
     if (!await _credentialsManager.hasCredentials()) {
       await _showLoginDialog();
@@ -167,42 +169,19 @@ class _CommandInterfaceState extends State<CommandInterface>
       final cmd = _commandController.text.trim();
       if (cmd.isEmpty) return;
 
-      // Update actual mode from pending mode and recreate controller if needed
-      if (_useConfs != _pendingConfsMode) {
-        _tabController.dispose();
-        setState(() {
-          _useConfs = _pendingConfsMode;
-          _selectedConf = null;
-          _currentTopics = [];
-          _selectedTopic = null;
-          _tabController = TabController(
-            length: _useConfs ? 3 : 2,
-            vsync: this,
-          );
-          // Clear debug output when switching modes
-          _outputController.clear();
-        });
-      }
-
-      // Lock the mode when executing command
-      setState(() {
-        _isModeLocked = true;
-      });
-
       if (dir.isNotEmpty) {
         await _saveDirectory();
       }
 
-      // Modify the command based on checkbox state
-      final makeObjectsCommand = _useConfs
-          ? 'python makeobjects2json.py -conf'
-          : 'python makeobjects2json.py';
+      await _saveCommand();
+
+      // Always use -conf mode
+      const makeObjectsCommand = 'python makeobjects2json.py -conf';
 
       // Construct the Python command with the user input
       final pythonCommand =
           'python remoteexec.py --username $username --password $password -- "extract $cmd" | python extract2json.py | $makeObjectsCommand';
 
-      // Combine with directory change if directory is specified
       final fullCommand =
           dir.isNotEmpty ? 'cd "$dir" ; $pythonCommand' : pythonCommand;
 
@@ -213,7 +192,6 @@ class _CommandInterfaceState extends State<CommandInterface>
       );
 
       setState(() {
-        // Clear previous output before showing new output
         _outputController.clear();
         _outputController.text += 'PS> $fullCommand\n';
         _outputController.text += process.stdout.toString();
@@ -223,17 +201,11 @@ class _CommandInterfaceState extends State<CommandInterface>
         _outputController.text += '\n';
 
         try {
-          if (_useConfs) {
-            _currentConfs =
-                JsonProcessor.processConfOutput(process.stdout.toString());
-            _selectedConf = null;
-            _currentTopics = [];
-            _selectedTopic = null;
-          } else {
-            _currentTopics =
-                JsonProcessor.processCommandOutput(process.stdout.toString());
-            _selectedTopic = null;
-          }
+          _currentConfs =
+              JsonProcessor.processConfOutput(process.stdout.toString());
+          _selectedConf = null;
+          _currentTopics = [];
+          _selectedTopic = null;
         } catch (e) {
           _outputController.text += 'Error processing data: $e\n\n';
         }
@@ -334,7 +306,6 @@ class _CommandInterfaceState extends State<CommandInterface>
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 8),
-                        // Add clear button
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.clear, size: 18),
                           onPressed: () {
@@ -351,16 +322,6 @@ class _CommandInterfaceState extends State<CommandInterface>
                       },
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Row(
-                  children: [
-                    const Text('Confs '),
-                    Checkbox(
-                      value: _pendingConfsMode, // Show pending mode in checkbox
-                      onChanged: _handleConfsChanged, // Always allow changes
-                    ),
-                  ],
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
@@ -381,75 +342,45 @@ class _CommandInterfaceState extends State<CommandInterface>
             const SizedBox(height: 8),
             TabBar(
               controller: _tabController,
-              tabs: _useConfs
-                  ? const [
-                      Tab(text: 'Conferences'),
-                      Tab(text: 'Topics'),
-                      Tab(text: 'Debug'),
-                    ]
-                  : const [
-                      Tab(text: 'Topics'),
-                      Tab(text: 'Debug'),
-                    ],
+              tabs: const [
+                Tab(text: 'Conferences'),
+                Tab(text: 'Topics'),
+                Tab(text: 'Debug'),
+              ],
             ),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: _useConfs
-                    ? [
-                        // Conferences tab
-                        ConfView(
-                          confs: _currentConfs,
-                          onConfSelected: _handleConfSelected,
-                        ),
-                        // Topics tab (now matches 2-tab mode behavior)
-                        _selectedConf == null
-                            ? const Center(
-                                child:
-                                    Text('Select a conference to view topics'))
-                            : _selectedTopic == null
-                                ? TopicsView(
-                                    topics: _currentTopics,
-                                    onTopicSelected: _handleTopicSelected,
-                                  )
-                                : Column(
-                                    children: [
-                                      ElevatedButton(
-                                        onPressed: () => setState(
-                                            () => _selectedTopic = null),
-                                        child: const Text('Back to Topics'),
-                                      ),
-                                      Expanded(
-                                        child:
-                                            PostsView(topic: _selectedTopic!),
-                                      ),
-                                    ],
-                                  ),
-                        // Debug tab
-                        _buildDebugView(),
-                      ]
-                    : [
-                        // Topics tab
-                        _selectedTopic == null
-                            ? TopicsView(
-                                topics: _currentTopics,
-                                onTopicSelected: _handleTopicSelected,
-                              )
-                            : Column(
-                                children: [
-                                  ElevatedButton(
-                                    onPressed: () =>
-                                        setState(() => _selectedTopic = null),
-                                    child: const Text('Back to Topics'),
-                                  ),
-                                  Expanded(
-                                    child: PostsView(topic: _selectedTopic!),
-                                  ),
-                                ],
-                              ),
-                        // Debug tab
-                        _buildDebugView(),
-                      ],
+                children: [
+                  // Conferences tab
+                  ConfView(
+                    confs: _currentConfs,
+                    onConfSelected: _handleConfSelected,
+                  ),
+                  // Topics tab
+                  _selectedConf == null
+                      ? const Center(
+                          child: Text('Select a conference to view topics'))
+                      : _selectedTopic == null
+                          ? TopicsView(
+                              topics: _currentTopics,
+                              onTopicSelected: _handleTopicSelected,
+                            )
+                          : Column(
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      setState(() => _selectedTopic = null),
+                                  child: const Text('Back to Topics'),
+                                ),
+                                Expanded(
+                                  child: PostsView(topic: _selectedTopic!),
+                                ),
+                              ],
+                            ),
+                  // Debug tab
+                  _buildDebugView(),
+                ],
               ),
             ),
           ],
