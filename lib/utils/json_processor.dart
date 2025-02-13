@@ -2,6 +2,7 @@ import 'dart:convert';
 import '../models/topic.dart';
 import '../models/post.dart';
 import '../models/conf.dart';
+import 'dart:io';
 
 class JsonProcessor {
   static List<Topic> processCommandOutput(String output) {
@@ -118,5 +119,24 @@ class JsonProcessor {
     } catch (e) {
       throw FormatException('Error parsing JSON: $e');
     }
+  }
+
+  static Future<List<Topic>> getTopics(
+      String directory, String confName) async {
+    final file = File('$directory/${confName}_topics.json');
+    if (!await file.exists()) {
+      return [];
+    }
+    final jsonString = await file.readAsString();
+    return processCommandOutput(jsonString);
+  }
+
+  static Future<List<Conf>> getConfs(String directory) async {
+    final file = File('$directory/confs.json');
+    if (!await file.exists()) {
+      return [];
+    }
+    final jsonString = await file.readAsString();
+    return processConfOutput(jsonString);
   }
 }

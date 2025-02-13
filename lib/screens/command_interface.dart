@@ -39,6 +39,16 @@ class _CommandInterfaceState extends State<CommandInterface>
   final _credentialsManager = CredentialsManager();
   String? _currentUsername;
 
+  List<Topic> _allTopics = [];
+
+  String get _topicsMenuLabel => _selectedConf == null
+      ? 'Topics Menu (all)'
+      : 'Topics Menu (${_selectedConf!.name})';
+
+  String get _allTopicsLabel => _selectedConf == null
+      ? 'New Posts (all)'
+      : 'All Posts (${_selectedConf!.name})';
+
   @override
   void initState() {
     super.initState();
@@ -201,17 +211,36 @@ class _CommandInterfaceState extends State<CommandInterface>
           _outputController.text += process.stderr.toString();
         }
         _outputController.text += '\n';
-
-        try {
-          _currentConfs =
-              JsonProcessor.processConfOutput(process.stdout.toString());
-          _selectedConf = null;
-          _currentTopics = [];
-          _selectedTopic = null;
-        } catch (e) {
-          _outputController.text += 'Error processing data: $e\n\n';
-        }
       });
+
+      // Process the output once
+      try {
+        final confs =
+            JsonProcessor.processConfOutput(process.stdout.toString());
+
+        // Extract all topics from all confs
+        final allTopics = <Topic>[];
+        for (var conf in confs) {
+          allTopics.addAll(conf.topics);
+        }
+
+        setState(() {
+          _currentConfs = confs;
+          _selectedConf = null;
+          _selectedTopic = null;
+          _allTopics = allTopics;
+          _currentTopics = allTopics; // Show all topics initially
+
+          _outputController.text +=
+              '\nLoaded ${confs.length} conferences with ${allTopics.length} total topics';
+        });
+
+        if (cmd == 'l') {
+          _tabController.animateTo(0);
+        }
+      } catch (e) {
+        _outputController.text += 'Error processing data: $e\n\n';
+      }
     } catch (e) {
       setState(() {
         _outputController.text += 'PS> ${_commandController.text}\n';
@@ -226,11 +255,20 @@ class _CommandInterfaceState extends State<CommandInterface>
     });
   }
 
-  void _handleConfSelected(Conf conf) {
+  void _handleConfSelected(Conf? conf) {
+    _outputController.text += '\nConference selected: ${conf?.name ?? "null"}';
     setState(() {
       _selectedConf = conf;
-      _currentTopics = conf.topics;
-      _tabController.animateTo(1); // Switch to Topics tab
+      _selectedTopic = null;
+      if (conf != null) {
+        _currentTopics = conf.topics; // Use topics directly from conf
+        _outputController.text +=
+            '\nShowing ${_currentTopics.length} topics from ${conf.name}';
+      } else {
+        _currentTopics = _allTopics;
+        _outputController.text +=
+            '\nShowing all ${_currentTopics.length} topics';
+      }
     });
   }
 
@@ -344,11 +382,11 @@ class _CommandInterfaceState extends State<CommandInterface>
             const SizedBox(height: 8),
             TabBar(
               controller: _tabController,
-              tabs: const [
-                Tab(text: 'Conferences'),
-                Tab(text: 'Topics Menu'),
-                Tab(text: 'All Topics'),
-                Tab(text: 'Debug'),
+              tabs: [
+                const Tab(text: 'Conferences'),
+                Tab(text: _topicsMenuLabel),
+                Tab(text: _allTopicsLabel),
+                const Tab(text: 'Debug'),
               ],
             ),
             Expanded(
@@ -361,20 +399,14 @@ class _CommandInterfaceState extends State<CommandInterface>
                     onConfSelected: _handleConfSelected,
                   ),
                   // Topics Menu tab
-                  _selectedConf == null
-                      ? const Center(
-                          child: Text('Select a conference to view topics'))
-                      : _selectedTopic == null
-                          ? TopicsView(
-                              topics: _currentTopics,
-                              onTopicSelected: _handleTopicSelected,
-                            )
-                          : TopicPostWidget(topic: _selectedTopic!),
+                  _selectedTopic == null
+                      ? TopicsView(
+                          topics: _currentTopics,
+                          onTopicSelected: _handleTopicSelected,
+                        )
+                      : TopicPostWidget(topic: _selectedTopic!),
                   // All Topics tab
-                  _selectedConf == null
-                      ? const Center(
-                          child: Text('Select a conference to view topics'))
-                      : TopicPostsContainer(topics: _currentTopics),
+                  TopicPostsContainer(topics: _currentTopics),
                   // Debug tab
                   _buildDebugView(),
                 ],
