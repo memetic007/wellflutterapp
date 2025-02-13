@@ -264,6 +264,8 @@ class _CommandInterfaceState extends State<CommandInterface>
         _currentTopics = conf.topics; // Use topics directly from conf
         _outputController.text +=
             '\nShowing ${_currentTopics.length} topics from ${conf.name}';
+        _tabController
+            .animateTo(1); // Switch to Topics Menu tab when conf selected
       } else {
         _currentTopics = _allTopics;
         _outputController.text +=
@@ -367,6 +369,11 @@ class _CommandInterfaceState extends State<CommandInterface>
                 ElevatedButton(
                   onPressed: _executeCommand,
                   child: const Text('Submit'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => _handleConfSelected(null),
+                  child: const Text('All'),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
