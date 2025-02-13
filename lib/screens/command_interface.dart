@@ -10,6 +10,8 @@ import '../widgets/posts_view.dart';
 import '../widgets/conf_view.dart';
 import '../utils/credentials_manager.dart';
 import '../widgets/login_dialog.dart';
+import '../widgets/topic_posts_container.dart';
+import '../widgets/topic_post_widget.dart';
 
 class CommandInterface extends StatefulWidget {
   const CommandInterface({super.key});
@@ -49,7 +51,7 @@ class _CommandInterfaceState extends State<CommandInterface>
 
   void _createTabController() {
     _tabController = TabController(
-      length: 3, // Always 3 tabs now
+      length: 4, // Changed to 4 tabs
       vsync: this,
     );
   }
@@ -344,7 +346,8 @@ class _CommandInterfaceState extends State<CommandInterface>
               controller: _tabController,
               tabs: const [
                 Tab(text: 'Conferences'),
-                Tab(text: 'Topics'),
+                Tab(text: 'Topics Menu'),
+                Tab(text: 'All Topics'),
                 Tab(text: 'Debug'),
               ],
             ),
@@ -357,7 +360,7 @@ class _CommandInterfaceState extends State<CommandInterface>
                     confs: _currentConfs,
                     onConfSelected: _handleConfSelected,
                   ),
-                  // Topics tab
+                  // Topics Menu tab
                   _selectedConf == null
                       ? const Center(
                           child: Text('Select a conference to view topics'))
@@ -366,18 +369,12 @@ class _CommandInterfaceState extends State<CommandInterface>
                               topics: _currentTopics,
                               onTopicSelected: _handleTopicSelected,
                             )
-                          : Column(
-                              children: [
-                                ElevatedButton(
-                                  onPressed: () =>
-                                      setState(() => _selectedTopic = null),
-                                  child: const Text('Back to Topics'),
-                                ),
-                                Expanded(
-                                  child: PostsView(topic: _selectedTopic!),
-                                ),
-                              ],
-                            ),
+                          : TopicPostWidget(topic: _selectedTopic!),
+                  // All Topics tab
+                  _selectedConf == null
+                      ? const Center(
+                          child: Text('Select a conference to view topics'))
+                      : TopicPostsContainer(topics: _currentTopics),
                   // Debug tab
                   _buildDebugView(),
                 ],
