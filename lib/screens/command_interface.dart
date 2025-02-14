@@ -13,6 +13,43 @@ import '../widgets/topic_posts_container.dart';
 import '../widgets/topic_post_widget.dart';
 import 'dart:convert';
 
+// Define intents at file level
+class NavigateLeftIntent extends Intent {
+  const NavigateLeftIntent();
+}
+
+class NavigateRightIntent extends Intent {
+  const NavigateRightIntent();
+}
+
+class NavigateUpIntent extends Intent {
+  const NavigateUpIntent();
+}
+
+class NavigateDownIntent extends Intent {
+  const NavigateDownIntent();
+}
+
+class DeleteCharacterIntent extends Intent {
+  const DeleteCharacterIntent();
+}
+
+class HomeIntent extends Intent {
+  const HomeIntent();
+}
+
+class EndIntent extends Intent {
+  const EndIntent();
+}
+
+class PageUpIntent extends Intent {
+  const PageUpIntent();
+}
+
+class PageDownIntent extends Intent {
+  const PageDownIntent();
+}
+
 class CommandInterface extends StatefulWidget {
   const CommandInterface({super.key});
 
@@ -59,7 +96,6 @@ class _CommandInterfaceState extends State<CommandInterface>
     _createTabController();
     _loadSavedDirectory();
     _loadSavedCommand();
-    _setupKeyboardListeners();
     _checkCredentials();
   }
 
@@ -68,41 +104,6 @@ class _CommandInterfaceState extends State<CommandInterface>
       length: 4, // Changed to 4 tabs
       vsync: this,
     );
-  }
-
-  void _setupKeyboardListeners() {
-    _focusNode.onKeyEvent = (node, event) {
-      if (event is KeyDownEvent) {
-        final isControlPressed = HardwareKeyboard.instance.isControlPressed;
-
-        if (event.logicalKey == LogicalKeyboardKey.numpad1 &&
-            isControlPressed) {
-          _commandController.selection = TextSelection.fromPosition(
-            TextPosition(offset: _commandController.text.length),
-          );
-          return KeyEventResult.handled;
-        } else if (event.logicalKey == LogicalKeyboardKey.numpad7 &&
-            isControlPressed) {
-          _commandController.selection =
-              const TextSelection.collapsed(offset: 0);
-          return KeyEventResult.handled;
-        } else if (event.logicalKey == LogicalKeyboardKey.delete ||
-            event.logicalKey == LogicalKeyboardKey.numpadDecimal) {
-          final selection = _commandController.selection;
-          if (selection.start < _commandController.text.length) {
-            final text = _commandController.text;
-            final newText =
-                text.replaceRange(selection.start, selection.start + 1, '');
-            _commandController.value = TextEditingValue(
-              text: newText,
-              selection: TextSelection.collapsed(offset: selection.start),
-            );
-          }
-          return KeyEventResult.handled;
-        }
-      }
-      return KeyEventResult.ignored;
-    };
   }
 
   Future<void> _loadSavedDirectory() async {
@@ -360,295 +361,325 @@ class _CommandInterfaceState extends State<CommandInterface>
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 4.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Directory input row
-            Row(
-              children: [
-                const Text(
-                  'Directory: ',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-                Expanded(
-                  child: SizedBox(
-                    height: 40,
-                    child: TextField(
-                      controller: _directoryController,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter directory path...',
-                        border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Command input row
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 40,
-                    child: TextField(
-                      controller: _commandController,
-                      decoration: InputDecoration(
-                        hintText: 'Enter command...',
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 8),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () {
-                            _commandController.clear();
-                          },
-                        ),
-                      ),
-                      onSubmitted: (_) => _executeCommand(),
-                      enableInteractiveSelection: true,
-                      contextMenuBuilder: (context, editableTextState) {
-                        return AdaptiveTextSelectionToolbar.editableText(
-                          editableTextState: editableTextState,
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _executeCommand,
-                  child: const Text('Submit'),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _outputController.clear();
-                    });
-                  },
-                  child: const Text('Clear'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            TabBar(
-              controller: _tabController,
-              tabs: [
-                const Tab(text: 'Conferences'),
-                Tab(text: _topicsMenuLabel),
-                Tab(text: _allTopicsLabel),
-                const Tab(text: 'Debug'),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
+        child: RawKeyboardListener(
+          focusNode: FocusNode(),
+          onKey: (RawKeyEvent event) {
+            if (event is RawKeyDownEvent) {
+              switch (event.physicalKey) {
+                case PhysicalKeyboardKey.numpad8:
+                  _handleArrowKey(LogicalKeyboardKey.arrowUp);
+                  return;
+                case PhysicalKeyboardKey.numpad2:
+                  _handleArrowKey(LogicalKeyboardKey.arrowDown);
+                  return;
+                case PhysicalKeyboardKey.numpad4:
+                  _handleArrowKey(LogicalKeyboardKey.arrowLeft);
+                  return;
+                case PhysicalKeyboardKey.numpad6:
+                  _handleArrowKey(LogicalKeyboardKey.arrowRight);
+                  return;
+                case PhysicalKeyboardKey.numpad7:
+                  _handleArrowKey(LogicalKeyboardKey.home);
+                  return;
+                case PhysicalKeyboardKey.numpad1:
+                  _handleArrowKey(LogicalKeyboardKey.end);
+                  return;
+                case PhysicalKeyboardKey.numpadDecimal:
+                  _handleDelete();
+                  return;
+              }
+            }
+          },
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Directory input row
+              Row(
                 children: [
-                  // Conferences tab
-                  Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Row(
-                          children: [
-                            ElevatedButton(
-                              onPressed: () => _showButtonPressed(
-                                  context, 'conferencesTabRefresh'),
-                              child: const Text('Refresh'),
-                            ),
-                            if (_selectedConf != null) ...[
-                              const SizedBox(width: 8),
-                              ElevatedButton(
-                                onPressed: () => _handleConfSelected(null),
-                                child: const Text('All Confs'),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: ConfView(
-                          confs: _currentConfs,
-                          onConfSelected: _handleConfSelected,
-                        ),
-                      ),
-                    ],
+                  const Text(
+                    'Directory: ',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   ),
-                  // Topics Menu tab
-                  Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Row(
-                          children: [
-                            ElevatedButton(
-                              onPressed: () => _showButtonPressed(
-                                  context, 'topicsMenuTabRefresh'),
-                              child: const Text('Refresh'),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: () => _showButtonPressed(
-                                  context, 'createNewTopicPressed'),
-                              child: const Text('New Topic'),
-                            ),
-                            if (_selectedConf != null) ...[
-                              const SizedBox(width: 8),
-                              ElevatedButton(
-                                onPressed: () => _handleConfSelected(null),
-                                child: const Text('All Confs'),
-                              ),
-                            ],
-                          ],
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: TextField(
+                        controller: _directoryController,
+                        decoration: const InputDecoration(
+                          hintText: 'Enter directory path...',
+                          border: OutlineInputBorder(),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                         ),
                       ),
-                      Expanded(
-                        child: _selectedTopic == null
-                            ? TopicsView(
-                                topics: _currentTopics,
-                                onTopicSelected: _handleTopicSelected,
-                              )
-                            : TopicPostWidget(topic: _selectedTopic!),
-                      ),
-                    ],
+                    ),
                   ),
-                  // All Posts tab
-                  Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Row(
-                          children: [
-                            ElevatedButton(
-                              onPressed: () => _showButtonPressed(
-                                  context, 'allPostsTabRefresh'),
-                              child: const Text('Refresh'),
-                            ),
-                            if (_selectedConf != null) ...[
-                              const SizedBox(width: 8),
-                              ElevatedButton(
-                                onPressed: () => _handleConfSelected(null),
-                                child: const Text('All Confs'),
-                              ),
-                            ],
-                            Expanded(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  ElevatedButton(
-                                    onPressed: _topicPostsContainerKey
-                                                .currentState?.isScrolling !=
-                                            true
-                                        ? () {
-                                            final container =
-                                                _topicPostsContainerKey
-                                                    .currentState;
-                                            if (container != null) {
-                                              container.scrollToIndex(0);
-                                            }
-                                          }
-                                        : null,
-                                    child: const Text('Home'),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton(
-                                    onPressed: _currentTopicIndex > 0 &&
-                                            _topicPostsContainerKey.currentState
-                                                    ?.isScrolling !=
-                                                true
-                                        ? () {
-                                            final container =
-                                                _topicPostsContainerKey
-                                                    .currentState;
-                                            if (container != null) {
-                                              container.scrollToPrevious();
-                                            }
-                                          }
-                                        : null,
-                                    child: const Text('Previous'),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16.0),
-                                    child: Text(
-                                      _topicPostsContainerKey.currentState
-                                              ?.currentPositionText ??
-                                          'Topic 1 of ${_currentTopics.length}',
-                                      style: const TextStyle(fontSize: 16),
-                                    ),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: _currentTopicIndex <
-                                                _currentTopics.length - 1 &&
-                                            _topicPostsContainerKey.currentState
-                                                    ?.isScrolling !=
-                                                true
-                                        ? () {
-                                            final container =
-                                                _topicPostsContainerKey
-                                                    .currentState;
-                                            if (container != null) {
-                                              container.scrollToNext();
-                                            }
-                                          }
-                                        : null,
-                                    child: const Text('Next'),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton(
-                                    onPressed: _topicPostsContainerKey
-                                                .currentState?.isScrolling !=
-                                            true
-                                        ? () {
-                                            final container =
-                                                _topicPostsContainerKey
-                                                    .currentState;
-                                            if (container != null) {
-                                              container.scrollToIndex(
-                                                  _currentTopics.length - 1);
-                                            }
-                                          }
-                                        : null,
-                                    child: const Text('End'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: TopicPostsContainer(
-                          key: _topicPostsContainerKey,
-                          topics: _currentTopics,
-                          onPrevious: _currentTopicIndex > 0
-                              ? () {
-                                  setState(() {
-                                    _currentTopicIndex--;
-                                  });
-                                }
-                              : null,
-                          onNext: _currentTopicIndex < _currentTopics.length - 1
-                              ? () {
-                                  setState(() {
-                                    _currentTopicIndex++;
-                                  });
-                                }
-                              : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Debug tab
-                  _buildDebugView(),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              // Command input row
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: TextField(
+                        controller: _commandController,
+                        focusNode: _focusNode,
+                        autofocus: true,
+                        keyboardType: TextInputType.text,
+                        decoration: InputDecoration(
+                          hintText: 'Enter command...',
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 8),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _commandController.clear();
+                            },
+                          ),
+                        ),
+                        onSubmitted: (_) => _executeCommand(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _executeCommand,
+                    child: const Text('Submit'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _outputController.clear();
+                      });
+                    },
+                    child: const Text('Clear'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TabBar(
+                controller: _tabController,
+                tabs: [
+                  const Tab(text: 'Conferences'),
+                  Tab(text: _topicsMenuLabel),
+                  Tab(text: _allTopicsLabel),
+                  const Tab(text: 'Debug'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Conferences tab
+                    Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Row(
+                            children: [
+                              ElevatedButton(
+                                onPressed: () => _showButtonPressed(
+                                    context, 'conferencesTabRefresh'),
+                                child: const Text('Refresh'),
+                              ),
+                              if (_selectedConf != null) ...[
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: () => _handleConfSelected(null),
+                                  child: const Text('All Confs'),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: ConfView(
+                            confs: _currentConfs,
+                            onConfSelected: _handleConfSelected,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Topics Menu tab
+                    Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Row(
+                            children: [
+                              ElevatedButton(
+                                onPressed: () => _showButtonPressed(
+                                    context, 'topicsMenuTabRefresh'),
+                                child: const Text('Refresh'),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: () => _showButtonPressed(
+                                    context, 'createNewTopicPressed'),
+                                child: const Text('New Topic'),
+                              ),
+                              if (_selectedConf != null) ...[
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: () => _handleConfSelected(null),
+                                  child: const Text('All Confs'),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: _selectedTopic == null
+                              ? TopicsView(
+                                  topics: _currentTopics,
+                                  onTopicSelected: _handleTopicSelected,
+                                )
+                              : TopicPostWidget(topic: _selectedTopic!),
+                        ),
+                      ],
+                    ),
+                    // All Posts tab
+                    Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Row(
+                            children: [
+                              ElevatedButton(
+                                onPressed: () => _showButtonPressed(
+                                    context, 'allPostsTabRefresh'),
+                                child: const Text('Refresh'),
+                              ),
+                              if (_selectedConf != null) ...[
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: () => _handleConfSelected(null),
+                                  child: const Text('All Confs'),
+                                ),
+                              ],
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: _topicPostsContainerKey
+                                                  .currentState?.isScrolling !=
+                                              true
+                                          ? () {
+                                              final container =
+                                                  _topicPostsContainerKey
+                                                      .currentState;
+                                              if (container != null) {
+                                                container.scrollToIndex(0);
+                                              }
+                                            }
+                                          : null,
+                                      child: const Text('Home'),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton(
+                                      onPressed: _currentTopicIndex > 0 &&
+                                              _topicPostsContainerKey
+                                                      .currentState
+                                                      ?.isScrolling !=
+                                                  true
+                                          ? () {
+                                              final container =
+                                                  _topicPostsContainerKey
+                                                      .currentState;
+                                              if (container != null) {
+                                                container.scrollToPrevious();
+                                              }
+                                            }
+                                          : null,
+                                      child: const Text('Previous'),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16.0),
+                                      child: Text(
+                                        _topicPostsContainerKey.currentState
+                                                ?.currentPositionText ??
+                                            'Topic 1 of ${_currentTopics.length}',
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: _currentTopicIndex <
+                                                  _currentTopics.length - 1 &&
+                                              _topicPostsContainerKey
+                                                      .currentState
+                                                      ?.isScrolling !=
+                                                  true
+                                          ? () {
+                                              final container =
+                                                  _topicPostsContainerKey
+                                                      .currentState;
+                                              if (container != null) {
+                                                container.scrollToNext();
+                                              }
+                                            }
+                                          : null,
+                                      child: const Text('Next'),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton(
+                                      onPressed: _topicPostsContainerKey
+                                                  .currentState?.isScrolling !=
+                                              true
+                                          ? () {
+                                              final container =
+                                                  _topicPostsContainerKey
+                                                      .currentState;
+                                              if (container != null) {
+                                                container.scrollToIndex(
+                                                    _currentTopics.length - 1);
+                                              }
+                                            }
+                                          : null,
+                                      child: const Text('End'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: TopicPostsContainer(
+                            key: _topicPostsContainerKey,
+                            topics: _currentTopics,
+                            onPrevious: _currentTopicIndex > 0
+                                ? () {
+                                    setState(() {
+                                      _currentTopicIndex--;
+                                    });
+                                  }
+                                : null,
+                            onNext:
+                                _currentTopicIndex < _currentTopics.length - 1
+                                    ? () {
+                                        setState(() {
+                                          _currentTopicIndex++;
+                                        });
+                                      }
+                                    : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Debug tab
+                    _buildDebugView(),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -773,5 +804,61 @@ class _CommandInterfaceState extends State<CommandInterface>
     } catch (e) {
       _outputController.text += '\nError loading conference data: $e';
     }
+  }
+
+  void _handleArrowKey(LogicalKeyboardKey key) {
+    final TextEditingController controller = _commandController;
+    final selection = controller.selection;
+
+    switch (key) {
+      case LogicalKeyboardKey.arrowLeft:
+        if (selection.start > 0) {
+          controller.selection = TextSelection.collapsed(
+            offset: selection.start - 1,
+          );
+        }
+        break;
+      case LogicalKeyboardKey.arrowRight:
+        if (selection.start < controller.text.length) {
+          controller.selection = TextSelection.collapsed(
+            offset: selection.start + 1,
+          );
+        }
+        break;
+      case LogicalKeyboardKey.home:
+        controller.selection = const TextSelection.collapsed(offset: 0);
+        break;
+      case LogicalKeyboardKey.end:
+        controller.selection = TextSelection.collapsed(
+          offset: controller.text.length,
+        );
+        break;
+      case LogicalKeyboardKey.pageUp:
+      case LogicalKeyboardKey.pageDown:
+      case LogicalKeyboardKey.arrowUp:
+      case LogicalKeyboardKey.arrowDown:
+        // Handle these if needed
+        break;
+    }
+  }
+
+  KeyEventResult _handleDelete() {
+    final selection = _commandController.selection;
+    final text = _commandController.text;
+
+    // Check if we have a valid selection and text
+    if (selection.start < 0 || selection.start >= text.length) {
+      return KeyEventResult.handled;
+    }
+
+    if (selection.start < _commandController.text.length) {
+      final newText =
+          text.replaceRange(selection.start, selection.start + 1, '');
+      _commandController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: selection.start),
+      );
+    }
+    return KeyEventResult.handled;
   }
 }
