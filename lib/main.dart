@@ -34,8 +34,26 @@ class _WinAppState extends State<WinApp> {
 
   @override
   Widget build(BuildContext context) {
+    final buildTime = DateTime.now();
+    final formattedTime =
+        '${buildTime.year}-${buildTime.month.toString().padLeft(2, '0')}-${buildTime.day.toString().padLeft(2, '0')} '
+        '${buildTime.hour.toString().padLeft(2, '0')}:${buildTime.minute.toString().padLeft(2, '0')}';
+
+    // Get current git branch
+    String branch = '';
+    try {
+      final result = Process.runSync('git', ['branch', '--show-current']);
+      if (result.exitCode == 0) {
+        branch = result.stdout.toString().trim();
+      }
+    } catch (e) {
+      // Ignore errors if git command fails
+    }
+
+    final branchInfo = branch.isNotEmpty ? ' [$branch]' : '';
+
     return MaterialApp(
-      title: 'WELL App Prototype v 0.0.2',
+      title: 'WELL App Prototype v 0.0.2$branchInfo (Built: $formattedTime)',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),

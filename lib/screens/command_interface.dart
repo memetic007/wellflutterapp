@@ -316,9 +316,22 @@ class _CommandInterfaceState extends State<CommandInterface>
 
   @override
   Widget build(BuildContext context) {
+    String branch = '';
+    try {
+      final result = Process.runSync('git', ['branch', '--show-current']);
+      if (result.exitCode == 0) {
+        branch = result.stdout.toString().trim();
+      }
+    } catch (e) {
+      // Ignore errors if git command fails
+    }
+
+    final branchInfo = branch.isNotEmpty ? ' [$branch]' : '';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('WELL App Prototype v 0.0.2'),
+        title: Text(
+            'WELL App Prototype v 0.0.2$branchInfo (Built: ${DateTime.now().toString().substring(0, 16)})'),
         actions: [
           if (_currentUsername != null)
             PopupMenuButton<String>(
