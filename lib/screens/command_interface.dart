@@ -238,6 +238,8 @@ class _CommandInterfaceState extends State<CommandInterface>
           _selectedTopic = null;
           _allTopics = allTopics;
           _currentTopics = allTopics;
+          _currentTopicIndex = 0;
+          _topicPostsContainerKey.currentState?.resetToStart();
 
           _outputController.text +=
               '\nLoaded ${confs.length} conferences with ${allTopics.length} total topics';
@@ -285,10 +287,23 @@ class _CommandInterfaceState extends State<CommandInterface>
   }
 
   void _showButtonPressed(BuildContext context, String buttonName) {
+    String message;
+    switch (buttonName) {
+      case 'createNewTopicPressed':
+        message = 'New Topic button was pressed';
+        break;
+      case 'topicsMenuTabRefresh':
+        message = 'Topics Menu Refresh button was pressed';
+        break;
+      // ... other cases ...
+      default:
+        message = '$buttonName button was pressed';
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        content: Text('$buttonName was pressed'),
+        content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -397,11 +412,6 @@ class _CommandInterfaceState extends State<CommandInterface>
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () => _handleConfSelected(null),
-                  child: const Text('All Confs'),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
                   onPressed: () {
                     setState(() {
                       _outputController.clear();
@@ -467,6 +477,12 @@ class _CommandInterfaceState extends State<CommandInterface>
                                   context, 'topicsMenuTabRefresh'),
                               child: const Text('Refresh'),
                             ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: () => _showButtonPressed(
+                                  context, 'createNewTopicPressed'),
+                              child: const Text('New Topic'),
+                            ),
                             if (_selectedConf != null) ...[
                               const SizedBox(width: 8),
                               ElevatedButton(
@@ -511,6 +527,22 @@ class _CommandInterfaceState extends State<CommandInterface>
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   ElevatedButton(
+                                    onPressed: _topicPostsContainerKey
+                                                .currentState?.isScrolling !=
+                                            true
+                                        ? () {
+                                            final container =
+                                                _topicPostsContainerKey
+                                                    .currentState;
+                                            if (container != null) {
+                                              container.scrollToIndex(0);
+                                            }
+                                          }
+                                        : null,
+                                    child: const Text('Home'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
                                     onPressed: _currentTopicIndex > 0 &&
                                             _topicPostsContainerKey.currentState
                                                     ?.isScrolling !=
@@ -532,7 +564,7 @@ class _CommandInterfaceState extends State<CommandInterface>
                                     child: Text(
                                       _topicPostsContainerKey.currentState
                                               ?.currentPositionText ??
-                                          'Topic',
+                                          'Topic 1 of ${_currentTopics.length}',
                                       style: const TextStyle(fontSize: 16),
                                     ),
                                   ),
@@ -552,6 +584,23 @@ class _CommandInterfaceState extends State<CommandInterface>
                                           }
                                         : null,
                                     child: const Text('Next'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    onPressed: _topicPostsContainerKey
+                                                .currentState?.isScrolling !=
+                                            true
+                                        ? () {
+                                            final container =
+                                                _topicPostsContainerKey
+                                                    .currentState;
+                                            if (container != null) {
+                                              container.scrollToIndex(
+                                                  _currentTopics.length - 1);
+                                            }
+                                          }
+                                        : null,
+                                    child: const Text('End'),
                                   ),
                                 ],
                               ),
@@ -615,11 +664,33 @@ class _CommandInterfaceState extends State<CommandInterface>
 
   @override
   void dispose() {
+    // Dispose controllers
     _commandController.dispose();
     _outputController.dispose();
     _directoryController.dispose();
     _focusNode.dispose();
     _tabController.dispose();
+
+    // Clear any stored state
+    _currentTopics.clear();
+    _currentConfs.clear();
+    _allTopics.clear();
+
+    // Ensure the key is disposed
+    if (_topicPostsContainerKey.currentState != null) {
+      _topicPostsContainerKey.currentState!.dispose();
+    }
+
+    // Force cleanup of any lingering processes
+    if (Platform.isWindows) {
+      try {
+        Process.runSync('taskkill', ['/F', '/IM', 'dart.exe']);
+      } catch (e) {
+        // Ignore errors if process not found
+      }
+    }
+
+    // Call parent dispose
     super.dispose();
   }
 
@@ -663,13 +734,29 @@ class _CommandInterfaceState extends State<CommandInterface>
         allTopics.addAll(conf.topics);
       }
 
+      // First update the data
       setState(() {
         _currentConfs = confs;
         _allTopics = allTopics;
         _currentTopics = allTopics;
-        _outputController.text +=
-            '\nSuccessfully loaded ${confs.length} conferences with ${allTopics.length} total topics from well_confs.json';
+        _currentTopicIndex = 0;
       });
+
+      // Force a rebuild to ensure the container is created
+      await Future.delayed(Duration.zero);
+
+      // Then update the UI if we're still mounted
+      if (mounted) {
+        // Force the container to show the first topic
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_topicPostsContainerKey.currentState != null) {
+            _topicPostsContainerKey.currentState!.resetToStart();
+          }
+        });
+      }
+
+      _outputController.text +=
+          '\nSuccessfully loaded ${confs.length} conferences with ${allTopics.length} total topics from well_confs.json';
     } catch (e) {
       _outputController.text += '\nError loading conference data: $e';
     }

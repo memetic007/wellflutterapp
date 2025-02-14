@@ -29,7 +29,19 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
   @override
   void initState() {
     super.initState();
+    _currentIndex = 0; // Ensure we start at index 0
     _itemPositionsListener.itemPositions.addListener(_updateCurrentIndex);
+  }
+
+  @override
+  void didUpdateWidget(TopicPostsContainer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset position when topics list changes
+    if (widget.topics != oldWidget.topics) {
+      setState(() {
+        _currentIndex = 0;
+      });
+    }
   }
 
   void _updateCurrentIndex() {
@@ -104,6 +116,28 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
     });
   }
 
+  void scrollToIndex(int index) {
+    if (index < 0 || index >= widget.topics.length || _isScrolling) return;
+
+    setState(() {
+      _isScrolling = true;
+    });
+
+    _itemScrollController
+        .scrollTo(
+      index: index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      alignment: 0.0,
+    )
+        .then((_) {
+      _updateCurrentIndex();
+      setState(() {
+        _isScrolling = false;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return ScrollablePositionedList.builder(
@@ -122,10 +156,25 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
   }
 
   String get currentPositionText {
-    return 'Topic ${_currentIndex + 1} of ${widget.topics.length}';
+    final total = widget.topics.length;
+    // Always show position 1 if we have topics but no current index yet
+    if (total > 0 && _currentIndex == 0) {
+      return 'Topic 1 of $total';
+    }
+    return 'Topic ${total > 0 ? _currentIndex + 1 : 0} of $total';
   }
 
   bool get isScrolling => _isScrolling;
+
+  // Add method to reset position
+  void resetToStart() {
+    setState(() {
+      _currentIndex = 0;
+    });
+    if (widget.topics.isNotEmpty) {
+      scrollToIndex(0);
+    }
+  }
 
   @override
   void dispose() {
