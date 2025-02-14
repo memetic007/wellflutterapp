@@ -6,7 +6,6 @@ import '../utils/json_processor.dart';
 import '../models/topic.dart';
 import '../models/conf.dart';
 import '../widgets/topics_view.dart';
-import '../widgets/posts_view.dart';
 import '../widgets/conf_view.dart';
 import '../utils/credentials_manager.dart';
 import '../widgets/login_dialog.dart';
@@ -57,9 +56,7 @@ class _CommandInterfaceState extends State<CommandInterface>
   @override
   void initState() {
     super.initState();
-    _outputController.text = 'Starting application...\n';
     _createTabController();
-    _tabController.animateTo(3); // Switch to Debug tab (index 3)
     _loadSavedDirectory();
     _loadSavedCommand();
     _setupKeyboardListeners();
@@ -109,24 +106,16 @@ class _CommandInterfaceState extends State<CommandInterface>
   }
 
   Future<void> _loadSavedDirectory() async {
-    _outputController.text += '\nAttempting to load saved directory...';
     final prefs = await SharedPreferences.getInstance();
     final savedDirectory = prefs.getString(_directorySaveKey);
     if (savedDirectory != null) {
-      _outputController.text += '\nFound saved directory: $savedDirectory';
       final directory = Directory(savedDirectory);
       if (await directory.exists()) {
-        _outputController.text += '\nDirectory exists, setting it...';
         setState(() {
           _directoryController.text = savedDirectory;
         });
-        _outputController.text += '\nTrying to load confs file...';
         await _loadConfsFromFile();
-      } else {
-        _outputController.text += '\nDirectory does not exist!';
       }
-    } else {
-      _outputController.text += '\nNo saved directory found';
     }
   }
 
@@ -409,7 +398,7 @@ class _CommandInterfaceState extends State<CommandInterface>
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () => _handleConfSelected(null),
-                  child: const Text('All'),
+                  child: const Text('All Confs'),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
@@ -448,6 +437,13 @@ class _CommandInterfaceState extends State<CommandInterface>
                                   context, 'conferencesTabRefresh'),
                               child: const Text('Refresh'),
                             ),
+                            if (_selectedConf != null) ...[
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: () => _handleConfSelected(null),
+                                child: const Text('All Confs'),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -471,15 +467,11 @@ class _CommandInterfaceState extends State<CommandInterface>
                                   context, 'topicsMenuTabRefresh'),
                               child: const Text('Refresh'),
                             ),
-                            if (_selectedTopic != null) ...[
+                            if (_selectedConf != null) ...[
                               const SizedBox(width: 8),
                               ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedTopic = null;
-                                  });
-                                },
-                                child: const Text('Topics Menu'),
+                                onPressed: () => _handleConfSelected(null),
+                                child: const Text('All Confs'),
                               ),
                             ],
                           ],
@@ -507,6 +499,13 @@ class _CommandInterfaceState extends State<CommandInterface>
                                   context, 'allPostsTabRefresh'),
                               child: const Text('Refresh'),
                             ),
+                            if (_selectedConf != null) ...[
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: () => _handleConfSelected(null),
+                                child: const Text('All Confs'),
+                              ),
+                            ],
                             Expanded(
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,

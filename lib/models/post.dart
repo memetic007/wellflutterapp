@@ -43,13 +43,13 @@ class Post {
 
   factory Post.fromJson(Map<String, dynamic> json) {
     final post = Post(
-      handle: json['handle'] as String,
-      datetime: json['datetime'] as String,
-      username: json['username'] as String,
-      pseud: json['pseud'] as String,
-      text: (json['text'] as List).map((e) => e as String).toList(),
+      handle: json['handle']?.toString() ?? '',
+      datetime: json['datetime']?.toString() ?? '',
+      username: json['username']?.toString() ?? '',
+      pseud: json['pseud']?.toString() ?? '',
+      text: (json['text'] as List?)?.map((e) => e.toString()).toList() ?? [],
     );
-    post.datetime_iso8601 = json['datetime_iso8601'] as String;
+    post.datetime_iso8601 = json['datetime_iso8601']?.toString() ?? '';
     return post;
   }
 }

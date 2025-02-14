@@ -57,17 +57,19 @@ class Topic {
 
   factory Topic.fromJson(Map<String, dynamic> json) {
     return Topic(
-      conf: json['conf'] as String,
-      handle: json['handle'] as String,
-      title: json['title'] as String,
-      posts: (json['posts'] as List)
-          .map((postJson) => Post.fromJson(postJson))
-          .toList(),
-      number: json['number'] as int,
-      lastPost: json['lastPost'] as int,
-      lastPostTime: json['lastPostTime'] as String,
-      lastPoster: json['lastPoster'] as String,
-      url: json['url'] as String,
+      conf: json['conf']?.toString() ?? '',
+      handle: json['handle']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      posts: (json['posts'] as List?)
+              ?.map(
+                  (postJson) => Post.fromJson(postJson as Map<String, dynamic>))
+              .toList() ??
+          [],
+      number: json['number'] as int? ?? 0,
+      lastPost: json['lastPost'] as int? ?? 0,
+      lastPostTime: json['lastPostTime']?.toString() ?? '',
+      lastPoster: json['lastPoster']?.toString() ?? '',
+      url: json['url']?.toString() ?? '',
     );
   }
 }

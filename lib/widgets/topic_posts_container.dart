@@ -116,8 +116,6 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
           topic: widget.topics[index],
           index: index,
           total: widget.topics.length,
-          onNextPressed: scrollToNext,
-          onPreviousPressed: scrollToPrevious,
         );
       },
     );

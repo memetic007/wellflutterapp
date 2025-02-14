@@ -3,18 +3,14 @@ import '../models/topic.dart';
 
 class TopicPostWidget extends StatelessWidget {
   final Topic topic;
-  final int? index; // Optional because single topic view doesn't need it
-  final int? total; // Optional for same reason
-  final VoidCallback? onNextPressed;
-  final VoidCallback? onPreviousPressed;
+  final int? index; // Keep these for now as they might be used elsewhere
+  final int? total;
 
   const TopicPostWidget({
     super.key,
     required this.topic,
     this.index,
     this.total,
-    this.onNextPressed,
-    this.onPreviousPressed,
   });
 
   void _showMessage(BuildContext context, String message) {
@@ -75,22 +71,6 @@ class TopicPostWidget extends StatelessWidget {
                       ),
                       Row(
                         children: [
-                          if (onPreviousPressed != null)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
-                              child: ElevatedButton(
-                                onPressed: onPreviousPressed,
-                                child: const Text('Previous'),
-                              ),
-                            ),
-                          if (onNextPressed != null)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 16.0),
-                              child: ElevatedButton(
-                                onPressed: onNextPressed,
-                                child: const Text('Next'),
-                              ),
-                            ),
                           const Text('Forget'),
                           Checkbox(
                             value: false,
@@ -104,7 +84,7 @@ class TopicPostWidget extends StatelessWidget {
                 ),
               ),
             ),
-            // Modified posts content section
+            // Posts content section
             Flexible(
               child: SingleChildScrollView(
                 child: Container(
@@ -128,7 +108,7 @@ class TopicPostWidget extends StatelessWidget {
                     onPressed: () => _showMessage(context, 'Reply pressed'),
                     child: const Text('Reply'),
                   ),
-                  const SizedBox(width: 8), // Add spacing between buttons
+                  const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () => _showMessage(context, 'Update pressed'),
                     child: const Text('Refresh'),
@@ -162,8 +142,8 @@ class TopicPostWidget extends StatelessWidget {
       for (final word in words) {
         if (currentLine.isEmpty) {
           currentLine = word;
-        } else if ((currentLine + ' ' + word).length <= maxContentLength) {
-          currentLine += ' ' + word;
+        } else if (('$currentLine $word').length <= maxContentLength) {
+          currentLine += ' $word';
         } else {
           wrappedLines.add(textAreaPrefix + currentLine);
           currentLine = word;

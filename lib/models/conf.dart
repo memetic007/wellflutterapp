@@ -35,11 +35,13 @@ class Conf {
   // Add JSON deserialization method
   factory Conf.fromJson(Map<String, dynamic> json) {
     return Conf(
-      name: json['name'] as String,
-      title: json['title'] as String,
-      topics: (json['topics'] as List)
-          .map((topicJson) => Topic.fromJson(topicJson))
-          .toList(),
+      name: json['name']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      topics: (json['topics'] as List?)
+              ?.map((topicJson) =>
+                  Topic.fromJson(topicJson as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 }
