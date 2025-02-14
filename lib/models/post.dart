@@ -40,4 +40,16 @@ class Post {
       'text': text,
     };
   }
-} 
+
+  factory Post.fromJson(Map<String, dynamic> json) {
+    final post = Post(
+      handle: json['handle'] as String,
+      datetime: json['datetime'] as String,
+      username: json['username'] as String,
+      pseud: json['pseud'] as String,
+      text: (json['text'] as List).map((e) => e as String).toList(),
+    );
+    post.datetime_iso8601 = json['datetime_iso8601'] as String;
+    return post;
+  }
+}

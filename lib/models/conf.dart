@@ -1,23 +1,20 @@
 import 'topic.dart';
 
 class Conf {
-  String name;
-  String handle;
-  String title;
-  List<Topic> topics;
+  final String name;
+  final String title;
+  final List<Topic> topics;
 
   Conf({
     required this.name,
-    required this.handle,
     required this.title,
-    List<Topic>? topics,
-  }) : topics = topics ?? [];
+    required this.topics,
+  });
 
   // Factory constructor for empty conference
   factory Conf.empty() {
     return Conf(
       name: "",
-      handle: "",
       title: "",
       topics: [],
     );
@@ -30,9 +27,19 @@ class Conf {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
-      'handle': handle,
       'title': title,
       'topics': topics.map((topic) => topic.toJson()).toList(),
     };
   }
-} 
+
+  // Add JSON deserialization method
+  factory Conf.fromJson(Map<String, dynamic> json) {
+    return Conf(
+      name: json['name'] as String,
+      title: json['title'] as String,
+      topics: (json['topics'] as List)
+          .map((topicJson) => Topic.fromJson(topicJson))
+          .toList(),
+    );
+  }
+}

@@ -27,6 +27,11 @@ class JsonProcessor {
           conf: topicJson['conf'] as String,
           handle: topicJson['handle'] as String,
           title: topicJson['title'] as String,
+          number: topicJson['number'] as int? ?? 0,
+          lastPost: topicJson['lastPost'] as int? ?? 0,
+          lastPostTime: topicJson['lastPostTime'] as String? ?? '',
+          lastPoster: topicJson['lastPoster'] as String? ?? '',
+          url: topicJson['url'] as String? ?? '',
         );
 
         // Add posts to the topic
@@ -58,70 +63,46 @@ class JsonProcessor {
     }
   }
 
-  static List<Conf> processConfOutput(String output) {
-    // Find the first '[' and last ']'
-    final startIndex = output.indexOf('[');
-    final endIndex = output.lastIndexOf(']');
-
-    if (startIndex == -1 || endIndex == -1 || startIndex >= endIndex) {
-      throw const FormatException('Invalid JSON format in command output');
-    }
-
-    // Extract the JSON string
-    final jsonString = output.substring(startIndex, endIndex + 1);
-
-    try {
-      // Parse the JSON string
-      final List<dynamic> jsonList = json.decode(jsonString);
-
-      // Convert to List<Conf>
-      return jsonList.map((confJson) {
-        final conf = Conf(
-          name: confJson['name'] as String,
-          handle: confJson['handle'] as String,
-          title: confJson['title'] as String,
-        );
-
-        // Add topics to the conf
-        final List<dynamic> topicsJson = confJson['topics'];
-        for (var topicJson in topicsJson) {
-          final topic = Topic(
-            conf: topicJson['conf'] as String,
-            handle: topicJson['handle'] as String,
-            title: topicJson['title'] as String,
-          );
-
-          // Add posts to the topic
-          final List<dynamic> postsJson = topicJson['posts'];
-          for (var postJson in postsJson) {
-            final post = Post(
-              handle: postJson['handle'] as String,
-              datetime: postJson['datetime'] as String,
-              username: postJson['username'] as String,
-              pseud: postJson['pseud'] as String,
-            );
-
-            post.datetime_iso8601 = postJson['datetime_iso8601'] as String;
-
-            final List<dynamic> textList = postJson['text'];
-            for (var text in textList) {
-              post.appendText(text as String);
-            }
-
-            topic.addPost(post);
-          }
-
-          conf.addTopic(topic);
-        }
-
-        return conf;
-      }).toList();
-    } catch (e) {
-      throw FormatException('Error parsing JSON: $e');
-    }
+  static Topic _createTopic(Map<String, dynamic> json) {
+    return Topic(
+      conf: json['conf'] as String,
+      handle: json['handle'] as String,
+      title: json['title'] as String,
+      number: json['number'] as int? ?? 0,
+      lastPost: json['lastPost'] as int? ?? 0,
+      lastPostTime: json['lastPostTime'] as String? ?? '',
+      lastPoster: json['lastPoster'] as String? ?? '',
+      url: json['url'] as String? ?? '',
+      posts: (json['posts'] as List?)
+          ?.map((p) => Post.fromJson(p as Map<String, dynamic>))
+          .toList(),
+    );
   }
 
-  static Future<List<Topic>> getTopics(
+  static List<Topic> getTopics(String directory, String confName) {
+    final file = File('$directory/$confName.json');
+    if (!file.existsSync()) return [];
+
+    final jsonString = file.readAsStringSync();
+    final jsonList = jsonDecode(jsonString) as List;
+    return jsonList
+        .map((json) => _createTopic(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  static List<Conf> processConfOutput(String output) {
+    final jsonData = jsonDecode(output) as List;
+    return jsonData
+        .map((json) => Conf(
+              name: json['name'] as String,
+              title: json['title'] as String,
+              topics:
+                  (json['topics'] as List).map((t) => _createTopic(t)).toList(),
+            ))
+        .toList();
+  }
+
+  static Future<List<Topic>> getTopicsAsync(
       String directory, String confName) async {
     final file = File('$directory/${confName}_topics.json');
     if (!await file.exists()) {

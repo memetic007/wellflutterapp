@@ -12,6 +12,7 @@ import '../utils/credentials_manager.dart';
 import '../widgets/login_dialog.dart';
 import '../widgets/topic_posts_container.dart';
 import '../widgets/topic_post_widget.dart';
+import 'dart:convert';
 
 class CommandInterface extends StatefulWidget {
   const CommandInterface({super.key});
@@ -56,10 +57,12 @@ class _CommandInterfaceState extends State<CommandInterface>
   @override
   void initState() {
     super.initState();
+    _outputController.text = 'Starting application...\n';
+    _createTabController();
+    _tabController.animateTo(3); // Switch to Debug tab (index 3)
     _loadSavedDirectory();
     _loadSavedCommand();
     _setupKeyboardListeners();
-    _createTabController();
     _checkCredentials();
   }
 
@@ -106,12 +109,24 @@ class _CommandInterfaceState extends State<CommandInterface>
   }
 
   Future<void> _loadSavedDirectory() async {
+    _outputController.text += '\nAttempting to load saved directory...';
     final prefs = await SharedPreferences.getInstance();
     final savedDirectory = prefs.getString(_directorySaveKey);
     if (savedDirectory != null) {
-      setState(() {
-        _directoryController.text = savedDirectory;
-      });
+      _outputController.text += '\nFound saved directory: $savedDirectory';
+      final directory = Directory(savedDirectory);
+      if (await directory.exists()) {
+        _outputController.text += '\nDirectory exists, setting it...';
+        setState(() {
+          _directoryController.text = savedDirectory;
+        });
+        _outputController.text += '\nTrying to load confs file...';
+        await _loadConfsFromFile();
+      } else {
+        _outputController.text += '\nDirectory does not exist!';
+      }
+    } else {
+      _outputController.text += '\nNo saved directory found';
     }
   }
 
@@ -233,11 +248,13 @@ class _CommandInterfaceState extends State<CommandInterface>
           _selectedConf = null;
           _selectedTopic = null;
           _allTopics = allTopics;
-          _currentTopics = allTopics; // Show all topics initially
+          _currentTopics = allTopics;
 
           _outputController.text +=
               '\nLoaded ${confs.length} conferences with ${allTopics.length} total topics';
         });
+
+        await _saveConfsToFile(confs); // Save after successful processing
 
         if (cmd == 'l') {
           _tabController.animateTo(0);
@@ -605,5 +622,57 @@ class _CommandInterfaceState extends State<CommandInterface>
     _focusNode.dispose();
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveConfsToFile(List<Conf> confs) async {
+    try {
+      final dir = _directoryController.text.trim();
+      if (dir.isEmpty) return;
+
+      final file = File('$dir/well_confs.json');
+      final jsonList = confs.map((conf) => conf.toJson()).toList();
+      await file.writeAsString(jsonEncode(jsonList));
+
+      _outputController.text += '\nSaved conference data to well_confs.json';
+    } catch (e) {
+      _outputController.text += '\nError saving conference data: $e';
+    }
+  }
+
+  Future<void> _loadConfsFromFile() async {
+    try {
+      final dir = _directoryController.text.trim();
+      if (dir.isEmpty) {
+        _outputController.text += '\nDirectory is empty, cannot load confs';
+        return;
+      }
+
+      final file = File('$dir/well_confs.json');
+      if (!await file.exists()) {
+        _outputController.text += '\nwell_confs.json does not exist in $dir';
+        return;
+      }
+
+      _outputController.text += '\nReading well_confs.json...';
+      final jsonString = await file.readAsString();
+      final jsonList = jsonDecode(jsonString) as List;
+      final confs = jsonList.map((json) => Conf.fromJson(json)).toList();
+
+      // Extract all topics from all confs
+      final allTopics = <Topic>[];
+      for (var conf in confs) {
+        allTopics.addAll(conf.topics);
+      }
+
+      setState(() {
+        _currentConfs = confs;
+        _allTopics = allTopics;
+        _currentTopics = allTopics;
+        _outputController.text +=
+            '\nSuccessfully loaded ${confs.length} conferences with ${allTopics.length} total topics from well_confs.json';
+      });
+    } catch (e) {
+      _outputController.text += '\nError loading conference data: $e';
+    }
   }
 }
