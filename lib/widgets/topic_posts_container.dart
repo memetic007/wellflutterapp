@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/topic.dart';
-import 'topic_post_widget.dart';
+import 'post_widget.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 class TopicPostsContainer extends StatefulWidget {
@@ -140,16 +140,33 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.topics.isEmpty) {
+      return const Center(child: Text('No topics available'));
+    }
+
     return ScrollablePositionedList.builder(
       itemCount: widget.topics.length,
       itemScrollController: _itemScrollController,
       itemPositionsListener: _itemPositionsListener,
       itemBuilder: (context, index) {
-        return TopicPostWidget(
-          key: ValueKey('topic_$index'),
-          topic: widget.topics[index],
-          index: index,
-          total: widget.topics.length,
+        final topic = widget.topics[index];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              color: const Color(0xFFBBDEFB),
+              child: Text(
+                topic.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1565C0),
+                ),
+              ),
+            ),
+            ...topic.posts.map((post) => PostWidget(post: post)).toList(),
+          ],
         );
       },
     );
