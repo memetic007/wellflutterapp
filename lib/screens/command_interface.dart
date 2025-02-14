@@ -49,6 +49,10 @@ class _CommandInterfaceState extends State<CommandInterface>
       ? 'New Posts (all)'
       : 'All Posts (${_selectedConf!.name})';
 
+  int _currentTopicIndex = 0;
+
+  final _topicPostsContainerKey = GlobalKey<TopicPostsContainerState>();
+
   @override
   void initState() {
     super.initState();
@@ -274,6 +278,21 @@ class _CommandInterfaceState extends State<CommandInterface>
     });
   }
 
+  void _showButtonPressed(BuildContext context, String buttonName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Text('$buttonName was pressed'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -401,19 +420,151 @@ class _CommandInterfaceState extends State<CommandInterface>
                 controller: _tabController,
                 children: [
                   // Conferences tab
-                  ConfView(
-                    confs: _currentConfs,
-                    onConfSelected: _handleConfSelected,
+                  Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            ElevatedButton(
+                              onPressed: () => _showButtonPressed(
+                                  context, 'conferencesTabRefresh'),
+                              child: const Text('Refresh'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: ConfView(
+                          confs: _currentConfs,
+                          onConfSelected: _handleConfSelected,
+                        ),
+                      ),
+                    ],
                   ),
                   // Topics Menu tab
-                  _selectedTopic == null
-                      ? TopicsView(
+                  Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            ElevatedButton(
+                              onPressed: () => _showButtonPressed(
+                                  context, 'topicsMenuTabRefresh'),
+                              child: const Text('Refresh'),
+                            ),
+                            if (_selectedTopic != null) ...[
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedTopic = null;
+                                  });
+                                },
+                                child: const Text('Topics Menu'),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: _selectedTopic == null
+                            ? TopicsView(
+                                topics: _currentTopics,
+                                onTopicSelected: _handleTopicSelected,
+                              )
+                            : TopicPostWidget(topic: _selectedTopic!),
+                      ),
+                    ],
+                  ),
+                  // All Posts tab
+                  Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            ElevatedButton(
+                              onPressed: () => _showButtonPressed(
+                                  context, 'allPostsTabRefresh'),
+                              child: const Text('Refresh'),
+                            ),
+                            Expanded(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: _currentTopicIndex > 0 &&
+                                            _topicPostsContainerKey.currentState
+                                                    ?.isScrolling !=
+                                                true
+                                        ? () {
+                                            final container =
+                                                _topicPostsContainerKey
+                                                    .currentState;
+                                            if (container != null) {
+                                              container.scrollToPrevious();
+                                            }
+                                          }
+                                        : null,
+                                    child: const Text('Previous'),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0),
+                                    child: Text(
+                                      _topicPostsContainerKey.currentState
+                                              ?.currentPositionText ??
+                                          'Topic',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: _currentTopicIndex <
+                                                _currentTopics.length - 1 &&
+                                            _topicPostsContainerKey.currentState
+                                                    ?.isScrolling !=
+                                                true
+                                        ? () {
+                                            final container =
+                                                _topicPostsContainerKey
+                                                    .currentState;
+                                            if (container != null) {
+                                              container.scrollToNext();
+                                            }
+                                          }
+                                        : null,
+                                    child: const Text('Next'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: TopicPostsContainer(
+                          key: _topicPostsContainerKey,
                           topics: _currentTopics,
-                          onTopicSelected: _handleTopicSelected,
-                        )
-                      : TopicPostWidget(topic: _selectedTopic!),
-                  // All Topics tab
-                  TopicPostsContainer(topics: _currentTopics),
+                          onPrevious: _currentTopicIndex > 0
+                              ? () {
+                                  setState(() {
+                                    _currentTopicIndex--;
+                                  });
+                                }
+                              : null,
+                          onNext: _currentTopicIndex < _currentTopics.length - 1
+                              ? () {
+                                  setState(() {
+                                    _currentTopicIndex++;
+                                  });
+                                }
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ),
                   // Debug tab
                   _buildDebugView(),
                 ],

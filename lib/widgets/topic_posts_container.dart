@@ -1,114 +1,137 @@
 import 'package:flutter/material.dart';
 import '../models/topic.dart';
 import 'topic_post_widget.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 class TopicPostsContainer extends StatefulWidget {
   final List<Topic> topics;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
 
   const TopicPostsContainer({
     super.key,
     required this.topics,
+    this.onPrevious,
+    this.onNext,
   });
 
   @override
-  State<TopicPostsContainer> createState() => _TopicPostsContainerState();
+  State<TopicPostsContainer> createState() => TopicPostsContainerState();
 }
 
-class _TopicPostsContainerState extends State<TopicPostsContainer> {
-  final ScrollController _scrollController = ScrollController();
-  final List<GlobalKey> _keys = [];
+class TopicPostsContainerState extends State<TopicPostsContainer> {
+  final ItemScrollController _itemScrollController = ItemScrollController();
+  final ItemPositionsListener _itemPositionsListener =
+      ItemPositionsListener.create();
+  int _currentIndex = 0;
+  bool _isScrolling = false;
 
   @override
   void initState() {
     super.initState();
-    _keys.addAll(List.generate(
-      widget.topics.length,
-      (index) => GlobalKey(),
-    ));
+    _itemPositionsListener.itemPositions.addListener(_updateCurrentIndex);
   }
 
-  void _scrollToNext(int currentIndex) {
-    if (currentIndex >= widget.topics.length - 1) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          content: const Text('No More Topics'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+  void _updateCurrentIndex() {
+    final positions = _itemPositionsListener.itemPositions.value.toList();
+    if (positions.isEmpty) return;
 
-    final currentBox =
-        _keys[currentIndex].currentContext?.findRenderObject() as RenderBox?;
-    if (currentBox != null) {
-      final currentHeight = currentBox.size.height;
+    // Sort positions by leading edge to find the topmost
+    positions.sort((a, b) => a.itemLeadingEdge.compareTo(b.itemLeadingEdge));
+    final topItem = positions.first;
 
-      _scrollController.animateTo(
-        _scrollController.offset + currentHeight,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
+    // Only update if it's actually changed
+    if (topItem.index != _currentIndex) {
+      setState(() {
+        _currentIndex = topItem.index;
+      });
+
+      // Notify parent of index change during manual scroll
+      if (!_isScrolling) {
+        // Only during manual scroll
+        if (_currentIndex > topItem.index) {
+          widget.onPrevious?.call();
+        } else {
+          widget.onNext?.call();
+        }
+      }
     }
   }
 
-  void _scrollToPrevious(int currentIndex) {
-    if (currentIndex <= 0) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          content: const Text('No Previous Topics'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+  void scrollToNext() {
+    if (_currentIndex >= widget.topics.length - 1 || _isScrolling) return;
 
-    final previousBox = _keys[currentIndex - 1]
-        .currentContext
-        ?.findRenderObject() as RenderBox?;
-    if (previousBox != null) {
-      final previousHeight = previousBox.size.height;
+    setState(() {
+      _isScrolling = true;
+    });
 
-      _scrollController.animateTo(
-        _scrollController.offset - previousHeight,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
-    }
+    _itemScrollController
+        .scrollTo(
+      index: _currentIndex + 1,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      alignment: 0.0,
+    )
+        .then((_) {
+      widget.onNext?.call();
+      _updateCurrentIndex();
+      setState(() {
+        _isScrolling = false;
+      });
+    });
+  }
+
+  void scrollToPrevious() {
+    if (_currentIndex <= 0 || _isScrolling) return;
+
+    setState(() {
+      _isScrolling = true;
+    });
+
+    _itemScrollController
+        .scrollTo(
+      index: _currentIndex - 1,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      alignment: 0.0,
+    )
+        .then((_) {
+      widget.onPrevious?.call();
+      _updateCurrentIndex();
+      setState(() {
+        _isScrolling = false;
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      controller: _scrollController,
+    return ScrollablePositionedList.builder(
       itemCount: widget.topics.length,
+      itemScrollController: _itemScrollController,
+      itemPositionsListener: _itemPositionsListener,
       itemBuilder: (context, index) {
         return TopicPostWidget(
-          key: _keys[index],
+          key: ValueKey('topic_$index'),
           topic: widget.topics[index],
           index: index,
           total: widget.topics.length,
-          onNextPressed: () => _scrollToNext(index),
-          onPreviousPressed: () => _scrollToPrevious(index),
+          onNextPressed: scrollToNext,
+          onPreviousPressed: scrollToPrevious,
         );
       },
     );
   }
 
+  String get currentPositionText {
+    return 'Topic ${_currentIndex + 1} of ${widget.topics.length}';
+  }
+
+  bool get isScrolling => _isScrolling;
+
   @override
   void dispose() {
-    _scrollController.dispose();
+    _itemPositionsListener.itemPositions.removeListener(_updateCurrentIndex);
     super.dispose();
   }
 }
