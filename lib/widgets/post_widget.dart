@@ -26,81 +26,61 @@ class _PostWidgetState extends State<PostWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header with user info and timestamp
-          if (widget.showHeader)
-            Container(
-              padding: const EdgeInsets.all(12.0),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade100,
-                border: Border(
-                  bottom: BorderSide(
-                    color: Colors.blue.shade200,
-                    width: 1,
+          // Header and content combined in one selectable area
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                child: SelectableText.rich(
+                  TextSpan(
+                    style: DefaultTextStyle.of(context).style,
+                    children: [
+                      if (widget.showHeader) ...[
+                        TextSpan(
+                          text: widget.post.username,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                            color: Color(0xFF1565C0),
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' (${widget.post.pseud})',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '  ${widget.post.handle}\n',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '${widget.post.datetime}\n\n',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                      ...widget.post.text.map((line) {
+                        return TextSpan(
+                          text: '$line\n',
+                          style: const TextStyle(
+                            height: 1.4,
+                            fontSize: 15,
+                          ),
+                        );
+                      }).toList(),
+                    ],
                   ),
                 ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: RichText(
-                      text: TextSpan(
-                        style: DefaultTextStyle.of(context).style,
-                        children: [
-                          TextSpan(
-                            text: widget.post.username,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 17,
-                              color: Color(0xFF1565C0),
-                            ),
-                          ),
-                          TextSpan(
-                            text: ' (${widget.post.pseud})',
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 14,
-                            ),
-                          ),
-                          TextSpan(
-                            text: '\n${widget.post.datetime}',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Text(
-                    widget.post.handle,
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // Post content
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: widget.post.text.map((line) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text(
-                    line,
-                    style: const TextStyle(
-                      height: 1.4,
-                      fontSize: 15,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
+            ],
           ),
 
           // Footer with save checkbox

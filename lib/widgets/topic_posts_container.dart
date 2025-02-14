@@ -156,12 +156,26 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
             Container(
               padding: const EdgeInsets.all(8.0),
               color: const Color(0xFFBBDEFB),
-              child: Text(
-                topic.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1565C0),
+              child: SelectableText.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '[${topic.conf}] ',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1565C0),
+                      ),
+                    ),
+                    TextSpan(
+                      text: topic.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1565C0),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
