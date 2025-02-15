@@ -25,6 +25,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
+  final ScrollController _scrollController = ScrollController();
   int _currentIndex = 0;
   bool _isScrolling = false;
   final Map<int, bool> _forgetStates = {}; // Track forget state for each topic
@@ -32,7 +33,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
   @override
   void initState() {
     super.initState();
-    _currentIndex = 0; // Ensure we start at index 0
+    _currentIndex = 0;
     _itemPositionsListener.itemPositions.addListener(_updateCurrentIndex);
   }
 
@@ -147,59 +148,102 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
       return const Center(child: Text('No topics available'));
     }
 
-    return ScrollablePositionedList.builder(
-      itemCount: widget.topics.length,
-      itemScrollController: _itemScrollController,
-      itemPositionsListener: _itemPositionsListener,
-      itemBuilder: (context, index) {
-        final topic = widget.topics[index];
-        return Column(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 800,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(8.0),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                border: Border(bottom: BorderSide(color: Colors.grey[400]!)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      topic.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+            // Scrollable list of topics and their posts
+            Expanded(
+              child: Scrollbar(
+                thumbVisibility: true,
+                interactive: true,
+                thickness: 8.0,
+                radius: const Radius.circular(4),
+                controller: _scrollController,
+                child: ListView.builder(
+                  controller: _scrollController,
+                  itemCount: widget.topics.length,
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Forget'),
-                      Checkbox(
-                        value: _forgetStates[index] ?? false,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            _forgetStates[index] = value ?? false;
-                          });
-                          if (value == true && widget.onForgetPressed != null) {
-                            print(
-                                'TopicPostsContainer: Forget checkbox clicked');
-                            widget.onForgetPressed!();
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ],
+                  cacheExtent: 1000.0,
+                  addAutomaticKeepAlives: true,
+                  itemBuilder: (context, index) {
+                    final topic = widget.topics[index];
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8.0),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            border: Border(
+                                bottom: BorderSide(color: Colors.grey[400]!)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: '${topic.handle} - ',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: topic.title,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('Forget'),
+                                  Checkbox(
+                                    value: _forgetStates[index] ?? false,
+                                    onChanged: (bool? value) {
+                                      setState(() {
+                                        _forgetStates[index] = value ?? false;
+                                      });
+                                      if (value == true &&
+                                          widget.onForgetPressed != null) {
+                                        widget.onForgetPressed!();
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        ...topic.posts
+                            .map((post) => PostWidget(post: post))
+                            .toList(),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
-            ...topic.posts.map((post) => PostWidget(post: post)).toList(),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -226,6 +270,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _itemPositionsListener.itemPositions.removeListener(_updateCurrentIndex);
     super.dispose();
   }

@@ -235,7 +235,14 @@ class _CommandInterfaceState extends State<CommandInterface>
 
         // Update the UI with the loaded topics
         setState(() {
+          _currentConfs = confs;
+          _allTopics = allTopics;
           _currentTopics = allTopics;
+          _selectedConf = null;
+          _selectedTopic = null;
+          _currentTopicIndex = 0;
+          _topicPostsContainerKey.currentState?.resetToStart();
+
           _outputController.text +=
               '\nSuccessfully loaded ${confs.length} conferences with ${allTopics.length} total topics from well_confs.json';
         });
@@ -569,6 +576,19 @@ class _CommandInterfaceState extends State<CommandInterface>
                                 ElevatedButton(
                                   onPressed: () => _handleConfSelected(null),
                                   child: const Text('All Confs'),
+                                ),
+                              ],
+                              const Spacer(), // Push To Topic Menu button to the right
+                              if (_selectedTopic != null) ...[
+                                // Only show when a topic is selected
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedTopic =
+                                          null; // Clear selected topic to return to menu
+                                    });
+                                  },
+                                  child: const Text('To Topic Menu'),
                                 ),
                               ],
                             ],

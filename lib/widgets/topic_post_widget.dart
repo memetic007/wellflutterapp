@@ -18,77 +18,96 @@ class TopicPostWidget extends StatefulWidget {
 
 class _TopicPostWidgetState extends State<TopicPostWidget> {
   bool _isForgetChecked = false;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8.0),
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            border: Border(bottom: BorderSide(color: Colors.grey[400]!)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Text(
-                      widget.topic.handle,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        widget.topic.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 800,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                border: Border(bottom: BorderSide(color: Colors.grey[400]!)),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Forget'),
-                  Checkbox(
-                    value: _isForgetChecked,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _isForgetChecked = value ?? false;
-                      });
-                      if (value == true && widget.onForgetPressed != null) {
-                        print('DEBUG - TopicPostWidget:');
-                        print('  - Topic title: "${widget.topic.title}"');
-                        print('  - Topic handle: "${widget.topic.handle}"');
-                        print('  - Full topic: ${widget.topic}');
-                        widget.onForgetPressed!();
-                      }
-                    },
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '[${widget.topic.handle}] ',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                          TextSpan(
+                            text: widget.topic.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Forget'),
+                      Checkbox(
+                        value: _isForgetChecked,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            _isForgetChecked = value ?? false;
+                          });
+                          if (value == true && widget.onForgetPressed != null) {
+                            print('DEBUG - TopicPostWidget:');
+                            print('  - Topic title: "${widget.topic.title}"');
+                            print('  - Topic handle: "${widget.topic.handle}"');
+                            print('  - Full topic: ${widget.topic}');
+                            widget.onForgetPressed!();
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            Expanded(
+              child: Scrollbar(
+                thumbVisibility: true,
+                interactive: true,
+                controller: _scrollController,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  child: Column(
+                    children: widget.topic.posts.map((post) => PostWidget(post: post)).toList(),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: widget.topic.posts.length,
-            itemBuilder: (context, index) {
-              return PostWidget(post: widget.topic.posts[index]);
-            },
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

@@ -23,13 +23,26 @@ class ConfView extends StatelessWidget {
             return Card(
               margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
               child: ListTile(
-                title: Text(conf.title),
-                subtitle: Text('${conf.topics.length} topics'),
-                leading: Text(
-                  '[${conf.name}]',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                title: RichText(
+                  text: TextSpan(
+                    style: DefaultTextStyle.of(context).style,
+                    children: [
+                      TextSpan(
+                        text: conf.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' (${conf.topics.length} topics) ',
+                        style: TextStyle(
+                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[850],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 onTap: () => onConfSelected(conf),

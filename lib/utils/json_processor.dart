@@ -91,17 +91,24 @@ class JsonProcessor {
   }
 
   static List<Conf> processConfOutput(String output) {
-    final List<Conf> confs = [];
-    try {
-      final Map<String, dynamic> json = jsonDecode(output);
-      final List<dynamic> confsJson = json['confs'];
-      for (var confJson in confsJson) {
-        confs.add(Conf.fromJson(confJson));
-      }
-    } catch (e) {
-      // Handle error silently
+    // Find the first '[' and last ']'
+    final startIndex = output.indexOf('[');
+    final endIndex = output.lastIndexOf(']');
+
+    if (startIndex == -1 || endIndex == -1 || startIndex >= endIndex) {
+      throw const FormatException('Invalid JSON format in command output');
     }
-    return confs;
+
+    // Extract the JSON string
+    final jsonString = output.substring(startIndex, endIndex + 1);
+
+    try {
+      // Parse the JSON string
+      final List<dynamic> jsonList = json.decode(jsonString);
+      return jsonList.map((confJson) => Conf.fromJson(confJson)).toList();
+    } catch (e) {
+      throw FormatException('Error parsing JSON: $e');
+    }
   }
 
   static Future<List<Topic>> getTopicsAsync(

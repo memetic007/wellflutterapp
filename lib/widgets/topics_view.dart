@@ -30,17 +30,34 @@ class TopicsView extends StatelessWidget {
                       style: DefaultTextStyle.of(context).style,
                       children: [
                         TextSpan(
-                          text: '[${topic.conf}] ',
+                          text: '[${topic.handle}] ',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
                           ),
                         ),
-                        TextSpan(text: topic.title),
+                        TextSpan(
+                          text: '(${topic.posts.length} new posts) ',
+                          style: TextStyle(
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[850],
+                          ),
+                        ),
+                        TextSpan(
+                          text: topic.title,
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  subtitle: Text('${topic.posts.length} posts'),
+                  subtitle: null,
+                  onTap: () {
+                    onTopicSelected(topic);
+                  },
                 ),
               ),
             );
@@ -49,4 +66,4 @@ class TopicsView extends StatelessWidget {
       ),
     );
   }
-} 
+}
