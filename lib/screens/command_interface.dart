@@ -102,7 +102,7 @@ class _CommandInterfaceState extends State<CommandInterface>
 
   void _createTabController() {
     _tabController = TabController(
-      length: 4, // Changed to 4 tabs
+      length: 3, // Changed from 4 to 3
       vsync: this,
     );
   }
@@ -346,12 +346,18 @@ class _CommandInterfaceState extends State<CommandInterface>
               onSelected: (value) {
                 if (value == 'edit') {
                   _showLoginDialog();
+                } else if (value == 'debug') {
+                  _showDebugDialog(context);
                 }
               },
               itemBuilder: (context) => [
                 const PopupMenuItem(
                   value: 'edit',
                   child: Text('Edit Username/Password'),
+                ),
+                const PopupMenuItem(
+                  value: 'debug',
+                  child: Text('Debug View'),
                 ),
               ],
             ),
@@ -516,10 +522,9 @@ class _CommandInterfaceState extends State<CommandInterface>
               TabBar(
                 controller: _tabController,
                 tabs: [
-                  const Tab(text: 'Conferences'),
+                  Tab(text: 'Conferences'),
                   Tab(text: _topicsMenuLabel),
                   Tab(text: _allTopicsLabel),
-                  const Tab(text: 'Debug'),
                 ],
               ),
               Expanded(
@@ -820,34 +825,11 @@ class _CommandInterfaceState extends State<CommandInterface>
                         ),
                       ],
                     ),
-                    // Debug tab
-                    _buildDebugView(),
                   ],
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDebugView() {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(
-        minHeight: 400.0,
-      ),
-      child: TextField(
-        controller: _outputController,
-        maxLines: null,
-        readOnly: true,
-        expands: true,
-        decoration: const InputDecoration(
-          border: OutlineInputBorder(),
-          filled: true,
-          fillColor: Color(0xFFF5F5F5),
-          contentPadding: EdgeInsets.all(8),
-          isCollapsed: true,
         ),
       ),
     );
@@ -1039,5 +1021,44 @@ class _CommandInterfaceState extends State<CommandInterface>
       default:
         break;
     }
+  }
+
+  void _showDebugDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Debug Output',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const Divider(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: SelectableText(_outputController.text),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
