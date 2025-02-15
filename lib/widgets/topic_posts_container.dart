@@ -7,12 +7,14 @@ class TopicPostsContainer extends StatefulWidget {
   final List<Topic> topics;
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
+  final VoidCallback? onForgetPressed;
 
   const TopicPostsContainer({
     super.key,
     required this.topics,
     this.onPrevious,
     this.onNext,
+    this.onForgetPressed,
   });
 
   @override
@@ -25,6 +27,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
       ItemPositionsListener.create();
   int _currentIndex = 0;
   bool _isScrolling = false;
+  final Map<int, bool> _forgetStates = {}; // Track forget state for each topic
 
   @override
   void initState() {
@@ -155,28 +158,42 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
           children: [
             Container(
               padding: const EdgeInsets.all(8.0),
-              color: const Color(0xFFBBDEFB),
-              child: SelectableText.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '[${topic.conf}] ',
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                border: Border(bottom: BorderSide(color: Colors.grey[400]!)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      topic.title,
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1565C0),
                       ),
                     ),
-                    TextSpan(
-                      text: topic.title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1565C0),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Forget'),
+                      Checkbox(
+                        value: _forgetStates[index] ?? false,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            _forgetStates[index] = value ?? false;
+                          });
+                          if (value == true && widget.onForgetPressed != null) {
+                            print(
+                                'TopicPostsContainer: Forget checkbox clicked');
+                            widget.onForgetPressed!();
+                          }
+                        },
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
             ),
             ...topic.posts.map((post) => PostWidget(post: post)).toList(),

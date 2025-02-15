@@ -91,15 +91,17 @@ class JsonProcessor {
   }
 
   static List<Conf> processConfOutput(String output) {
-    final jsonData = jsonDecode(output) as List;
-    return jsonData
-        .map((json) => Conf(
-              name: json['name'] as String,
-              title: json['title'] as String,
-              topics:
-                  (json['topics'] as List).map((t) => _createTopic(t)).toList(),
-            ))
-        .toList();
+    final List<Conf> confs = [];
+    try {
+      final Map<String, dynamic> json = jsonDecode(output);
+      final List<dynamic> confsJson = json['confs'];
+      for (var confJson in confsJson) {
+        confs.add(Conf.fromJson(confJson));
+      }
+    } catch (e) {
+      // Handle error silently
+    }
+    return confs;
   }
 
   static Future<List<Topic>> getTopicsAsync(

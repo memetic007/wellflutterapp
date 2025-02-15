@@ -233,26 +233,14 @@ class _CommandInterfaceState extends State<CommandInterface>
           allTopics.addAll(conf.topics);
         }
 
+        // Update the UI with the loaded topics
         setState(() {
-          _currentConfs = confs;
-          _selectedConf = null;
-          _selectedTopic = null;
-          _allTopics = allTopics;
           _currentTopics = allTopics;
-          _currentTopicIndex = 0;
-          _topicPostsContainerKey.currentState?.resetToStart();
-
           _outputController.text +=
-              '\nLoaded ${confs.length} conferences with ${allTopics.length} total topics';
+              '\nSuccessfully loaded ${confs.length} conferences with ${allTopics.length} total topics from well_confs.json';
         });
-
-        await _saveConfsToFile(confs); // Save after successful processing
-
-        if (cmd == 'l') {
-          _tabController.animateTo(0);
-        }
       } catch (e) {
-        _outputController.text += 'Error processing data: $e\n\n';
+        _outputController.text += '\nError loading conference data: $e';
       }
     } catch (e) {
       setState(() {
@@ -592,7 +580,52 @@ class _CommandInterfaceState extends State<CommandInterface>
                                   topics: _currentTopics,
                                   onTopicSelected: _handleTopicSelected,
                                 )
-                              : TopicPostWidget(topic: _selectedTopic!),
+                              : TopicPostWidget(
+                                  topic: _selectedTopic!,
+                                  onForgetPressed: () {
+                                    setState(() {
+                                      _outputController.text +=
+                                          '\nForget was pressed for topic: ${_selectedTopic!.handle}';
+                                      WidgetsBinding.instance
+                                          .addPostFrameCallback((_) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.check_circle,
+                                                    color: Colors.white),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Forget was pressed for topic: ${_selectedTopic!.handle}',
+                                                    overflow:
+                                                        TextOverflow.visible,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            behavior: SnackBarBehavior.floating,
+                                            width: MediaQuery.of(context)
+                                                    .size
+                                                    .width *
+                                                0.8,
+                                            backgroundColor: Colors.green,
+                                            duration:
+                                                const Duration(seconds: 2),
+                                          ),
+                                        );
+                                        _outputController.selection =
+                                            TextSelection.fromPosition(
+                                          TextPosition(
+                                              offset: _outputController
+                                                  .text.length),
+                                        );
+                                      });
+                                    });
+                                  },
+                                ),
                         ),
                       ],
                     ),
@@ -722,6 +755,44 @@ class _CommandInterfaceState extends State<CommandInterface>
                                         });
                                       }
                                     : null,
+                            onForgetPressed: () {
+                              final topic = _currentTopics[_currentTopicIndex];
+                              setState(() {
+                                _outputController.text +=
+                                    '\nForget was pressed for topic: ${topic.handle}';
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.check_circle,
+                                              color: Colors.white),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'Forget was pressed for topic: ${topic.handle}',
+                                              overflow: TextOverflow.visible,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      behavior: SnackBarBehavior.floating,
+                                      width: MediaQuery.of(context).size.width *
+                                          0.8,
+                                      backgroundColor: Colors.green,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                  _outputController.selection =
+                                      TextSelection.fromPosition(
+                                    TextPosition(
+                                        offset: _outputController.text.length),
+                                  );
+                                });
+                              });
+                            },
                           ),
                         ),
                       ],
