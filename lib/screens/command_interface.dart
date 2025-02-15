@@ -361,34 +361,57 @@ class _CommandInterfaceState extends State<CommandInterface>
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 4.0),
-        child: RawKeyboardListener(
-          focusNode: FocusNode(),
-          onKey: (RawKeyEvent event) {
-            if (event is RawKeyDownEvent) {
-              switch (event.physicalKey) {
-                case PhysicalKeyboardKey.numpad8:
-                  _handleArrowKey(LogicalKeyboardKey.arrowUp);
-                  return;
-                case PhysicalKeyboardKey.numpad2:
-                  _handleArrowKey(LogicalKeyboardKey.arrowDown);
-                  return;
-                case PhysicalKeyboardKey.numpad4:
-                  _handleArrowKey(LogicalKeyboardKey.arrowLeft);
-                  return;
-                case PhysicalKeyboardKey.numpad6:
-                  _handleArrowKey(LogicalKeyboardKey.arrowRight);
-                  return;
-                case PhysicalKeyboardKey.numpad7:
-                  _handleArrowKey(LogicalKeyboardKey.home);
-                  return;
-                case PhysicalKeyboardKey.numpad1:
-                  _handleArrowKey(LogicalKeyboardKey.end);
-                  return;
-                case PhysicalKeyboardKey.numpadDecimal:
-                  _handleDelete();
-                  return;
+        child: Focus(
+          autofocus: true,
+          onKeyEvent: (FocusNode node, KeyEvent event) {
+            if (event is KeyDownEvent) {
+              // Handle physical keys for numpad
+              if (event.physicalKey == PhysicalKeyboardKey.numpad4) {
+                _handleArrowKey(LogicalKeyboardKey.arrowLeft);
+                return KeyEventResult.handled;
+              } else if (event.physicalKey == PhysicalKeyboardKey.numpad6) {
+                _handleArrowKey(LogicalKeyboardKey.arrowRight);
+                return KeyEventResult.handled;
+              } else if (event.physicalKey == PhysicalKeyboardKey.numpad8) {
+                _handleArrowKey(LogicalKeyboardKey.arrowUp);
+                return KeyEventResult.handled;
+              } else if (event.physicalKey == PhysicalKeyboardKey.numpad2) {
+                _handleArrowKey(LogicalKeyboardKey.arrowDown);
+                return KeyEventResult.handled;
+              } else if (event.physicalKey == PhysicalKeyboardKey.numpad7) {
+                _handleArrowKey(LogicalKeyboardKey.home);
+                return KeyEventResult.handled;
+              } else if (event.physicalKey == PhysicalKeyboardKey.numpad1) {
+                _handleArrowKey(LogicalKeyboardKey.end);
+                return KeyEventResult.handled;
+              } else if (event.physicalKey ==
+                  PhysicalKeyboardKey.numpadDecimal) {
+                _handleDelete();
+                return KeyEventResult.handled;
+              }
+
+              // Handle logical keys for regular navigation
+              if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                _handleArrowKey(LogicalKeyboardKey.arrowLeft);
+                return KeyEventResult.handled;
+              } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                _handleArrowKey(LogicalKeyboardKey.arrowRight);
+                return KeyEventResult.handled;
+              } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                _handleArrowKey(LogicalKeyboardKey.arrowUp);
+                return KeyEventResult.handled;
+              } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                _handleArrowKey(LogicalKeyboardKey.arrowDown);
+                return KeyEventResult.handled;
+              } else if (event.logicalKey == LogicalKeyboardKey.home) {
+                _handleArrowKey(LogicalKeyboardKey.home);
+                return KeyEventResult.handled;
+              } else if (event.logicalKey == LogicalKeyboardKey.end) {
+                _handleArrowKey(LogicalKeyboardKey.end);
+                return KeyEventResult.handled;
               }
             }
+            return KeyEventResult.ignored;
           },
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
