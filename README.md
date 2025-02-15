@@ -1,4 +1,4 @@
-# command_interface
+# WELL Flutter App
 
 A prototype and test bed for a potential multi-platform frontend for The WELL.
 
