@@ -12,6 +12,7 @@ import '../widgets/login_dialog.dart';
 import '../widgets/topic_posts_container.dart';
 import '../widgets/topic_post_widget.dart';
 import 'dart:convert';
+import '../main.dart' show displayLabel;
 
 // Define intents at file level
 class NavigateLeftIntent extends Intent {
@@ -246,6 +247,8 @@ class _CommandInterfaceState extends State<CommandInterface>
           _outputController.text +=
               '\nSuccessfully loaded ${confs.length} conferences with ${allTopics.length} total topics from well_confs.json';
         });
+
+        await _saveConfsToFile(confs);
       } catch (e) {
         _outputController.text += '\nError loading conference data: $e';
       }
@@ -327,7 +330,7 @@ class _CommandInterfaceState extends State<CommandInterface>
     return Scaffold(
       appBar: AppBar(
         title: Text(
-            'WELL App Prototype v 0.0.2$branchInfo (Built: ${DateTime.now().toString().substring(0, 16)})'),
+            '$displayLabel [${branch}] [Built: ${DateTime.now().toString().substring(0, 16)}]'),
         actions: [
           if (_currentUsername != null)
             PopupMenuButton<String>(

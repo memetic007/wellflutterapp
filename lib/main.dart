@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'screens/command_interface.dart';
 import 'dart:io';
 
+const String displayLabel = 'WELL App Prototype v0.0.3';
+const String appVersion = 'v0.0.3';
+
 class WinApp extends StatefulWidget {
   const WinApp({super.key});
 
@@ -50,10 +53,9 @@ class _WinAppState extends State<WinApp> {
       // Ignore errors if git command fails
     }
 
-    final branchInfo = branch.isNotEmpty ? ' [$branch]' : '';
-
     return MaterialApp(
-      title: 'WELL App Prototype v 0.0.2$branchInfo (Built: $formattedTime)',
+      title:
+          '$displayLabel [${branch}] [Built: $formattedTime]', // Updated format
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),

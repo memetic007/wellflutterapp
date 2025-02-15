@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/topic.dart';
 import 'post_widget.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'dart:math' as math;
 
 class TopicPostsContainer extends StatefulWidget {
   final List<Topic> topics;
@@ -25,16 +27,19 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
-  final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   int _currentIndex = 0;
   bool _isScrolling = false;
-  final Map<int, bool> _forgetStates = {}; // Track forget state for each topic
+  final Map<int, bool> _forgetStates = {};
 
   @override
   void initState() {
     super.initState();
     _currentIndex = 0;
     _itemPositionsListener.itemPositions.addListener(_updateCurrentIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
   }
 
   @override
@@ -52,94 +57,14 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
     final positions = _itemPositionsListener.itemPositions.value.toList();
     if (positions.isEmpty) return;
 
-    // Sort positions by leading edge to find the topmost
     positions.sort((a, b) => a.itemLeadingEdge.compareTo(b.itemLeadingEdge));
     final topItem = positions.first;
 
-    // Only update if it's actually changed
     if (topItem.index != _currentIndex) {
       setState(() {
         _currentIndex = topItem.index;
       });
-
-      // Notify parent of index change during manual scroll
-      if (!_isScrolling) {
-        // Only during manual scroll
-        if (_currentIndex > topItem.index) {
-          widget.onPrevious?.call();
-        } else {
-          widget.onNext?.call();
-        }
-      }
     }
-  }
-
-  void scrollToNext() {
-    if (_currentIndex >= widget.topics.length - 1 || _isScrolling) return;
-
-    setState(() {
-      _isScrolling = true;
-    });
-
-    _itemScrollController
-        .scrollTo(
-      index: _currentIndex + 1,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      alignment: 0.0,
-    )
-        .then((_) {
-      widget.onNext?.call();
-      _updateCurrentIndex();
-      setState(() {
-        _isScrolling = false;
-      });
-    });
-  }
-
-  void scrollToPrevious() {
-    if (_currentIndex <= 0 || _isScrolling) return;
-
-    setState(() {
-      _isScrolling = true;
-    });
-
-    _itemScrollController
-        .scrollTo(
-      index: _currentIndex - 1,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      alignment: 0.0,
-    )
-        .then((_) {
-      widget.onPrevious?.call();
-      _updateCurrentIndex();
-      setState(() {
-        _isScrolling = false;
-      });
-    });
-  }
-
-  void scrollToIndex(int index) {
-    if (index < 0 || index >= widget.topics.length || _isScrolling) return;
-
-    setState(() {
-      _isScrolling = true;
-    });
-
-    _itemScrollController
-        .scrollTo(
-      index: index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      alignment: 0.0,
-    )
-        .then((_) {
-      _updateCurrentIndex();
-      setState(() {
-        _isScrolling = false;
-      });
-    });
   }
 
   @override
@@ -148,103 +73,174 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
       return const Center(child: Text('No topics available'));
     }
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 800,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Scrollable list of topics and their posts
-            Expanded(
-              child: Scrollbar(
-                thumbVisibility: true,
-                interactive: true,
-                thickness: 8.0,
-                radius: const Radius.circular(4),
-                controller: _scrollController,
-                child: ListView.builder(
-                  controller: _scrollController,
-                  itemCount: widget.topics.length,
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  cacheExtent: 1000.0,
-                  addAutomaticKeepAlives: true,
-                  itemBuilder: (context, index) {
-                    final topic = widget.topics[index];
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return RawKeyboardListener(
+      focusNode: _focusNode,
+      autofocus: true,
+      onKey: (RawKeyEvent event) {
+        if (event is RawKeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+            // Scroll by approximately one line of text (about 24 pixels)
+            _itemScrollController.scrollTo(
+              index: _currentIndex,
+              duration: const Duration(milliseconds: 100),
+              curve: Curves.easeInOut,
+              alignment: _getNextAlignment(-24.0),
+            );
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+            // Scroll up by one line
+            _itemScrollController.scrollTo(
+              index: _currentIndex,
+              duration: const Duration(milliseconds: 100),
+              curve: Curves.easeInOut,
+              alignment: _getNextAlignment(24.0),
+            );
+          } else if (event.logicalKey == LogicalKeyboardKey.pageDown) {
+            // Keep larger jump for page up/down
+            final newIndex =
+                math.min(_currentIndex + 5, widget.topics.length - 1);
+            scrollToIndex(newIndex);
+          } else if (event.logicalKey == LogicalKeyboardKey.pageUp) {
+            // Keep larger jump for page up/down
+            final newIndex = math.max(_currentIndex - 5, 0);
+            scrollToIndex(newIndex);
+          } else if (event.logicalKey == LogicalKeyboardKey.home) {
+            scrollToIndex(0);
+          } else if (event.logicalKey == LogicalKeyboardKey.end) {
+            scrollToIndex(widget.topics.length - 1, alignment: 1.0);
+          }
+        }
+      },
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: ScrollablePositionedList.builder(
+            itemCount: widget.topics.length,
+            itemScrollController: _itemScrollController,
+            itemPositionsListener: _itemPositionsListener,
+            itemBuilder: (context, index) {
+              final topic = widget.topics[index];
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      border:
+                          Border(bottom: BorderSide(color: Colors.grey[400]!)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(8.0),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            border: Border(
-                                bottom: BorderSide(color: Colors.grey[400]!)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text.rich(
-                                  TextSpan(
-                                    children: [
-                                      TextSpan(
-                                        text: '${topic.handle} - ',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blue,
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text: topic.title,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
+                        Expanded(
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '${topic.handle} - ',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
                                   ),
                                 ),
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text('Forget'),
-                                  Checkbox(
-                                    value: _forgetStates[index] ?? false,
-                                    onChanged: (bool? value) {
-                                      setState(() {
-                                        _forgetStates[index] = value ?? false;
-                                      });
-                                      if (value == true &&
-                                          widget.onForgetPressed != null) {
-                                        widget.onForgetPressed!();
-                                      }
-                                    },
+                                TextSpan(
+                                  text: topic.title,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        ...topic.posts
-                            .map((post) => PostWidget(post: post))
-                            .toList(),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Forget'),
+                            Checkbox(
+                              value: _forgetStates[index] ?? false,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  _forgetStates[index] = value ?? false;
+                                });
+                                if (value == true &&
+                                    widget.onForgetPressed != null) {
+                                  widget.onForgetPressed!();
+                                }
+                              },
+                            ),
+                          ],
+                        ),
                       ],
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
+                    ),
+                  ),
+                  ...topic.posts.map((post) => PostWidget(post: post)).toList(),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
+  }
+
+  void scrollToNext() {
+    if (_currentIndex >= widget.topics.length - 1 || _isScrolling) return;
+    setState(() {
+      _isScrolling = true;
+    });
+    _itemScrollController
+        .scrollTo(
+      index: _currentIndex + 1,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    )
+        .then((_) {
+      widget.onNext?.call();
+      setState(() {
+        _isScrolling = false;
+      });
+    });
+  }
+
+  void scrollToPrevious() {
+    if (_currentIndex <= 0 || _isScrolling) return;
+    setState(() {
+      _isScrolling = true;
+    });
+    _itemScrollController
+        .scrollTo(
+      index: _currentIndex - 1,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    )
+        .then((_) {
+      widget.onPrevious?.call();
+      setState(() {
+        _isScrolling = false;
+      });
+    });
+  }
+
+  void scrollToIndex(int index, {double alignment = 0.0}) {
+    if (index < 0 || index >= widget.topics.length || _isScrolling) return;
+    setState(() {
+      _isScrolling = true;
+    });
+    _itemScrollController
+        .scrollTo(
+      index: index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      alignment: alignment,
+    )
+        .then((_) {
+      setState(() {
+        _isScrolling = false;
+      });
+    });
   }
 
   String get currentPositionText {
@@ -270,8 +266,20 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _focusNode.dispose();
     _itemPositionsListener.itemPositions.removeListener(_updateCurrentIndex);
     super.dispose();
+  }
+
+  double _getNextAlignment(double offset) {
+    final positions = _itemPositionsListener.itemPositions.value.toList();
+    if (positions.isEmpty) return 0.0;
+
+    positions.sort((a, b) => a.itemLeadingEdge.compareTo(b.itemLeadingEdge));
+    final currentPosition = positions.first;
+
+    // Calculate new alignment based on current position and desired offset
+    return currentPosition.itemLeadingEdge +
+        (offset / 500.0); // 500.0 is approximate viewport height
   }
 }
