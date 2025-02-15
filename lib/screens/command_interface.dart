@@ -425,15 +425,45 @@ class _CommandInterfaceState extends State<CommandInterface>
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   ),
                   Expanded(
-                    child: SizedBox(
-                      height: 40,
-                      child: TextField(
-                        controller: _directoryController,
-                        decoration: const InputDecoration(
-                          hintText: 'Enter directory path...',
-                          border: OutlineInputBorder(),
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Focus(
+                      onKeyEvent: (FocusNode node, KeyEvent event) {
+                        if (event is KeyDownEvent) {
+                          // Handle physical keys for numpad
+                          if (event.physicalKey ==
+                              PhysicalKeyboardKey.numpad4) {
+                            _handleDirectoryArrowKey(
+                                LogicalKeyboardKey.arrowLeft);
+                            return KeyEventResult.handled;
+                          } else if (event.physicalKey ==
+                              PhysicalKeyboardKey.numpad6) {
+                            _handleDirectoryArrowKey(
+                                LogicalKeyboardKey.arrowRight);
+                            return KeyEventResult.handled;
+                          } else if (event.physicalKey ==
+                              PhysicalKeyboardKey.numpad7) {
+                            _handleDirectoryArrowKey(LogicalKeyboardKey.home);
+                            return KeyEventResult.handled;
+                          } else if (event.physicalKey ==
+                              PhysicalKeyboardKey.numpad1) {
+                            _handleDirectoryArrowKey(LogicalKeyboardKey.end);
+                            return KeyEventResult.handled;
+                          }
+                        }
+                        return KeyEventResult.ignored;
+                      },
+                      child: SizedBox(
+                        height: 40,
+                        child: TextField(
+                          controller: _directoryController,
+                          decoration: const InputDecoration(
+                            labelText: 'Directory',
+                            border: OutlineInputBorder(),
+                          ),
+                          onSubmitted: (value) {
+                            setState(() {
+                              _directoryController.text = value;
+                            });
+                          },
                         ),
                       ),
                     ),
@@ -883,5 +913,37 @@ class _CommandInterfaceState extends State<CommandInterface>
       );
     }
     return KeyEventResult.handled;
+  }
+
+  void _handleDirectoryArrowKey(LogicalKeyboardKey key) {
+    final TextEditingController controller = _directoryController;
+    final selection = controller.selection;
+
+    switch (key) {
+      case LogicalKeyboardKey.arrowLeft:
+        if (selection.start > 0) {
+          controller.selection = TextSelection.collapsed(
+            offset: selection.start - 1,
+          );
+        }
+        break;
+      case LogicalKeyboardKey.arrowRight:
+        if (selection.start < controller.text.length) {
+          controller.selection = TextSelection.collapsed(
+            offset: selection.start + 1,
+          );
+        }
+        break;
+      case LogicalKeyboardKey.home:
+        controller.selection = const TextSelection.collapsed(offset: 0);
+        break;
+      case LogicalKeyboardKey.end:
+        controller.selection = TextSelection.collapsed(
+          offset: controller.text.length,
+        );
+        break;
+      default:
+        break;
+    }
   }
 }
