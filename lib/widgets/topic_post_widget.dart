@@ -100,84 +100,109 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
       autofocus: true,
       onKey: _handleKeyEvent,
       child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 800,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8.0),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  border: Border(bottom: BorderSide(color: Colors.grey[400]!)),
+        child: Column(
+          children: [
+            Expanded(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 800,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: '[${widget.topic.handle}] ',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
+                    Container(
+                      padding: const EdgeInsets.all(8.0),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        border: Border(bottom: BorderSide(color: Colors.grey[400]!)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: '[${widget.topic.handle}] ',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: widget.topic.title,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            TextSpan(
-                              text: widget.topic.title,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('Forget'),
+                              Checkbox(
+                                value: _isForgetChecked,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    _isForgetChecked = value ?? false;
+                                  });
+                                  if (value == true && widget.onForgetPressed != null) {
+                                    print('DEBUG - TopicPostWidget:');
+                                    print('  - Topic title: "${widget.topic.title}"');
+                                    print('  - Topic handle: "${widget.topic.handle}"');
+                                    print('  - Full topic: ${widget.topic}');
+                                    widget.onForgetPressed!();
+                                  }
+                                },
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Forget'),
-                        Checkbox(
-                          value: _isForgetChecked,
-                          onChanged: (bool? value) {
-                            setState(() {
-                              _isForgetChecked = value ?? false;
-                            });
-                            if (value == true && widget.onForgetPressed != null) {
-                              print('DEBUG - TopicPostWidget:');
-                              print('  - Topic title: "${widget.topic.title}"');
-                              print('  - Topic handle: "${widget.topic.handle}"');
-                              print('  - Full topic: ${widget.topic}');
-                              widget.onForgetPressed!();
-                            }
-                          },
+                    Expanded(
+                      child: Scrollbar(
+                        thumbVisibility: true,
+                        interactive: true,
+                        controller: _scrollController,
+                        child: SingleChildScrollView(
+                          controller: _scrollController,
+                          child: Column(
+                            children: [
+                              ...widget.topic.posts.map((post) => PostWidget(post: post)).toList(),
+                              Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.reply),
+                                  label: const Text('Reply'),
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text('Reply pressed'),
+                                        behavior: SnackBarBehavior.floating,
+                                        width: MediaQuery.of(context).size.width * 0.3,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              Expanded(
-                child: Scrollbar(
-                  thumbVisibility: true,
-                  interactive: true,
-                  controller: _scrollController,
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    child: Column(
-                      children: widget.topic.posts.map((post) => PostWidget(post: post)).toList(),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

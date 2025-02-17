@@ -177,6 +177,23 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                     ),
                   ),
                   ...topic.posts.map((post) => PostWidget(post: post)).toList(),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.reply),
+                      label: const Text('Reply'),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Reply pressed'),
+                            behavior: SnackBarBehavior.floating,
+                            width: MediaQuery.of(context).size.width * 0.3,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ],
               );
             },

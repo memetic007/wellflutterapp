@@ -130,22 +130,6 @@ class _PostWidgetState extends State<PostWidget> {
                     ),
                   ],
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Reply pressed for ${widget.post.handle}',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                        width: 300,
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                  child: const Text('Reply'),
-                ),
                 Text(
                   widget.post.datetime_iso8601,
                   style: TextStyle(
