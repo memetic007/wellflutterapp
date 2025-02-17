@@ -181,16 +181,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                                 child: ElevatedButton.icon(
                                   icon: const Icon(Icons.reply),
                                   label: const Text('Reply'),
-                                  onPressed: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: const Text('Reply pressed'),
-                                        behavior: SnackBarBehavior.floating,
-                                        width: MediaQuery.of(context).size.width * 0.3,
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                  },
+                                  onPressed: () => _showReplyDialog(context),
                                 ),
                               ),
                             ],
@@ -204,6 +195,54 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showReplyDialog(BuildContext context) {
+    final TextEditingController _replyController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Reply to ${widget.topic.handle}'),
+        content: SizedBox(
+          width: 640, // 80 chars * 8 pixels per char
+          child: TextField(
+            controller: _replyController,
+            maxLines: 8,
+            style: const TextStyle(
+              fontFamily: 'Courier New',
+              fontSize: 14,
+            ),
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Type your reply here...',
+              contentPadding: EdgeInsets.all(12),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Handle reply submission
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Reply submitted'),
+                  behavior: SnackBarBehavior.floating,
+                  width: MediaQuery.of(context).size.width * 0.3,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+              Navigator.of(context).pop();
+            },
+            child: const Text('Submit'),
+          ),
+        ],
       ),
     );
   }
