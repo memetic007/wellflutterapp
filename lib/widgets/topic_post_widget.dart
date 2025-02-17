@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/topic.dart';
 import 'post_widget.dart';
+import 'dart:io';
+import '../utils/credentials_manager.dart';
 
 class TopicPostWidget extends StatefulWidget {
   final Topic topic;
   final VoidCallback? onForgetPressed;
+  final String directory;
+  final CredentialsManager credentialsManager;
 
   const TopicPostWidget({
     super.key,
     required this.topic,
+    required this.directory,
+    required this.credentialsManager,
     this.onForgetPressed,
   });
 
@@ -21,6 +27,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
   bool _isForgetChecked = false;
+  final TextEditingController _outputController = TextEditingController();
 
   @override
   void initState() {
@@ -207,19 +214,36 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
       builder: (context) => AlertDialog(
         title: Text('Reply to ${widget.topic.handle}'),
         content: SizedBox(
-          width: 640, // 80 chars * 8 pixels per char
-          child: TextField(
-            controller: _replyController,
-            maxLines: 8,
-            style: const TextStyle(
-              fontFamily: 'Courier New',
-              fontSize: 14,
-            ),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: 'Type your reply here...',
-              contentPadding: EdgeInsets.all(12),
-            ),
+          width: 640,
+          child: Column(
+            children: [
+              TextField(
+                controller: _replyController,
+                maxLines: 8,
+                style: const TextStyle(
+                  fontFamily: 'Courier New',
+                  fontSize: 14,
+                ),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Type your reply here...',
+                  contentPadding: EdgeInsets.all(12),
+                ),
+              ),
+              TextField(
+                controller: _outputController,
+                maxLines: 10,
+                style: const TextStyle(
+                  fontFamily: 'Courier New',
+                  fontSize: 14,
+                ),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Command output...',
+                  contentPadding: EdgeInsets.all(12),
+                ),
+              ),
+            ],
           ),
         ),
         actions: [
@@ -228,17 +252,80 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // TODO: Handle reply submission
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Reply submitted'),
-                  behavior: SnackBarBehavior.floating,
-                  width: MediaQuery.of(context).size.width * 0.3,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-              Navigator.of(context).pop();
+            onPressed: () async {
+              try {
+                // Clear the debug output first
+                _outputController.clear();
+
+                // Get the text and escape it
+                final replyText = _replyController.text;
+                final escapedText = replyText
+                    .replaceAll('"', '\\"')
+                    .replaceAll('\n', '\\n');
+
+                // Get credentials
+                final username = await widget.credentialsManager.getUsername();
+                final password = await widget.credentialsManager.getPassword();
+
+                if (username == null || password == null) {
+                  throw Exception('Username or password not found');
+                }
+
+                // Build the command with the pipeline as the command argument
+                final currentDirectory = widget.directory.trim();
+                if (currentDirectory.isEmpty) {
+                  throw Exception('Directory is empty');
+                }
+
+                // Build the command with simple pipeline
+                final command = 'cd "$currentDirectory" ; python remoteexec.py --username $username --password $password --input "$escapedText" "cat ^| post freefire.ind 19"';
+
+                // Add to debug output
+                _outputController.text += '\nExecuting command in directory: $currentDirectory\n';
+                _outputController.text += 'Command:\n$command\n';
+
+                // Execute via powershell
+                final process = await Process.run(
+                  'powershell.exe',
+                  ['-Command', command],
+                  runInShell: true,
+                );
+
+                // Add command output to debug
+                _outputController.text += '\nCommand output:\n${process.stdout}\n';
+                if (process.stderr.toString().isNotEmpty) {
+                  _outputController.text += '\nErrors:\n${process.stderr}\n';
+                }
+
+                // Add the original post text
+                _outputController.text += '\nOriginal post text:\n${_replyController.text}\n';
+
+                // Show result
+                if (process.exitCode == 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Reply sent successfully'),
+                      behavior: SnackBarBehavior.floating,
+                      width: MediaQuery.of(context).size.width * 0.3,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                } else {
+                  throw Exception(process.stderr.toString());
+                }
+
+                Navigator.of(context).pop();
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error sending reply: $e'),
+                    behavior: SnackBarBehavior.floating,
+                    width: MediaQuery.of(context).size.width * 0.3,
+                    duration: const Duration(seconds: 2),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             child: const Text('Submit'),
           ),

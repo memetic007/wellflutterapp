@@ -346,12 +346,18 @@ class _CommandInterfaceState extends State<CommandInterface>
               onSelected: (value) {
                 if (value == 'edit') {
                   _showLoginDialog();
+                } else if (value == 'debug') {
+                  _showDebugDialog(context);
                 }
               },
               itemBuilder: (context) => [
                 const PopupMenuItem(
                   value: 'edit',
                   child: Text('Edit Username/Password'),
+                ),
+                const PopupMenuItem(
+                  value: 'debug',
+                  child: Text('Debug View'),
                 ),
               ],
             ),
@@ -605,6 +611,8 @@ class _CommandInterfaceState extends State<CommandInterface>
                                 )
                               : TopicPostWidget(
                                   topic: _selectedTopic!,
+                                  directory: _directoryController.text.trim(),
+                                  credentialsManager: _credentialsManager,
                                   onForgetPressed: () {
                                     setState(() {
                                       _outputController.text +=
@@ -1039,5 +1047,44 @@ class _CommandInterfaceState extends State<CommandInterface>
       default:
         break;
     }
+  }
+
+  void _showDebugDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Debug Output',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const Divider(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: SelectableText(_outputController.text),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
