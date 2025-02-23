@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/command_interface.dart';
 import 'dart:io';
+import 'dart:convert';
 
 const String displayLabel = 'WELL App Prototype v0.0.3';
 const String appVersion = 'v0.0.3';
@@ -85,4 +86,41 @@ void _cleanupAndExit() {
     // Ignore errors if processes not found
   }
   exit(0);
+}
+
+void handleReply(
+    String content, String workingDirectory, String username, String password) {
+  // Escape newlines and quotes, then convert to base64
+  final escapedContent = content
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"')
+      .replaceAll('\n', '\\n');
+
+  final bytes = utf8.encode(escapedContent);
+  final base64Content = base64.encode(bytes);
+
+  // Construct and execute the PowerShell command
+  final process = Process.run(
+      'powershell',
+      [
+        'python',
+        'remoteexec.py',
+        '-base64',
+        '--username',
+        username,
+        '--password',
+        password,
+        base64Content
+      ],
+      workingDirectory: workingDirectory);
+
+  process.then((result) {
+    if (result.exitCode != 0) {
+      print('Error executing command: ${result.stderr}');
+    } else {
+      print('Command executed successfully: ${result.stdout}');
+    }
+  }).catchError((error) {
+    print('Failed to execute command: $error');
+  });
 }

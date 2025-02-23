@@ -4,6 +4,7 @@ import '../models/topic.dart';
 import 'post_widget.dart';
 import 'dart:io';
 import '../utils/credentials_manager.dart';
+import 'dart:convert';
 
 class TopicPostWidget extends StatefulWidget {
   final Topic topic;
@@ -121,7 +122,8 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                       padding: const EdgeInsets.all(8.0),
                       decoration: BoxDecoration(
                         color: Colors.grey[300],
-                        border: Border(bottom: BorderSide(color: Colors.grey[400]!)),
+                        border: Border(
+                            bottom: BorderSide(color: Colors.grey[400]!)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -159,10 +161,13 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                                   setState(() {
                                     _isForgetChecked = value ?? false;
                                   });
-                                  if (value == true && widget.onForgetPressed != null) {
+                                  if (value == true &&
+                                      widget.onForgetPressed != null) {
                                     print('DEBUG - TopicPostWidget:');
-                                    print('  - Topic title: "${widget.topic.title}"');
-                                    print('  - Topic handle: "${widget.topic.handle}"');
+                                    print(
+                                        '  - Topic title: "${widget.topic.title}"');
+                                    print(
+                                        '  - Topic handle: "${widget.topic.handle}"');
                                     print('  - Full topic: ${widget.topic}');
                                     widget.onForgetPressed!();
                                   }
@@ -182,7 +187,9 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                           controller: _scrollController,
                           child: Column(
                             children: [
-                              ...widget.topic.posts.map((post) => PostWidget(post: post)).toList(),
+                              ...widget.topic.posts
+                                  .map((post) => PostWidget(post: post))
+                                  .toList(),
                               Padding(
                                 padding: const EdgeInsets.all(16.0),
                                 child: ElevatedButton.icon(
@@ -208,7 +215,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
 
   void _showReplyDialog(BuildContext context) {
     final TextEditingController _replyController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -216,23 +223,60 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
         content: SizedBox(
           width: 640,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: _replyController,
-                maxLines: 8,
-                style: const TextStyle(
-                  fontFamily: 'Courier New',
-                  fontSize: 14,
-                ),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Type your reply here...',
-                  contentPadding: EdgeInsets.all(12),
+              RawKeyboardListener(
+                focusNode: FocusNode(),
+                onKey: (RawKeyEvent event) {
+                  if (event is RawKeyDownEvent &&
+                      event.logicalKey == LogicalKeyboardKey.tab) {
+                    _replyController.value = TextEditingValue(
+                      text: _replyController.text.replaceRange(
+                        _replyController.selection.start,
+                        _replyController.selection.end,
+                        '    ',
+                      ),
+                      selection: TextSelection.collapsed(
+                        offset: _replyController.selection.start + 4,
+                      ),
+                    );
+                    return null;
+                  }
+                  return null;
+                },
+                child: Focus(
+                  onKey: (node, event) {
+                    if (event.logicalKey == LogicalKeyboardKey.tab) {
+                      return KeyEventResult.handled;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: TextField(
+                    controller: _replyController,
+                    maxLines: 8,
+                    style: const TextStyle(
+                      fontFamily: 'Courier New',
+                      fontSize: 14,
+                    ),
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: 'Type your reply here...',
+                      contentPadding: EdgeInsets.all(12),
+                    ),
+                    onEditingComplete: () {},
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    onTap: () {
+                      FocusScope.of(context).requestFocus();
+                    },
+                  ),
                 ),
               ),
+              const SizedBox(height: 8),
               TextField(
                 controller: _outputController,
                 maxLines: 10,
+                readOnly: true,
                 style: const TextStyle(
                   fontFamily: 'Courier New',
                   fontSize: 14,
@@ -257,12 +301,6 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                 // Clear the debug output first
                 _outputController.clear();
 
-                // Get the text and escape it
-                final replyText = _replyController.text;
-                final escapedText = replyText
-                    .replaceAll('"', '\\"')
-                    .replaceAll('\n', '\\n');
-
                 // Get credentials
                 final username = await widget.credentialsManager.getUsername();
                 final password = await widget.credentialsManager.getPassword();
@@ -271,17 +309,22 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                   throw Exception('Username or password not found');
                 }
 
-                // Build the command with the pipeline as the command argument
                 final currentDirectory = widget.directory.trim();
                 if (currentDirectory.isEmpty) {
                   throw Exception('Directory is empty');
                 }
 
-                // Build the command with simple pipeline
-                final command = 'cd "$currentDirectory" ; python remoteexec.py --username $username --password $password --input "$escapedText" "cat ^| post freefire.ind 19"';
+                // Get the raw text and convert to base64
+                final bytes = utf8.encode(_replyController.text);
+                final base64Content = base64.encode(bytes);
+
+                // Build the simple command
+                final command =
+                    'cd "$currentDirectory" ; python post.py --username $username --password $password $base64Content';
 
                 // Add to debug output
-                _outputController.text += '\nExecuting command in directory: $currentDirectory\n';
+                _outputController.text +=
+                    '\nExecuting command in directory: $currentDirectory\n';
                 _outputController.text += 'Command:\n$command\n';
 
                 // Execute via powershell
@@ -292,13 +335,15 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                 );
 
                 // Add command output to debug
-                _outputController.text += '\nCommand output:\n${process.stdout}\n';
+                _outputController.text +=
+                    '\nCommand output:\n${process.stdout}\n';
                 if (process.stderr.toString().isNotEmpty) {
                   _outputController.text += '\nErrors:\n${process.stderr}\n';
                 }
 
                 // Add the original post text
-                _outputController.text += '\nOriginal post text:\n${_replyController.text}\n';
+                _outputController.text +=
+                    '\nOriginal post text:\n${_replyController.text}\n';
 
                 // Show result
                 if (process.exitCode == 0) {
@@ -310,11 +355,10 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                       duration: const Duration(seconds: 2),
                     ),
                   );
+                  Navigator.of(context).pop();
                 } else {
                   throw Exception(process.stderr.toString());
                 }
-
-                Navigator.of(context).pop();
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
