@@ -5,12 +5,14 @@ import 'post_widget.dart';
 import 'dart:io';
 import '../utils/credentials_manager.dart';
 import 'dart:convert';
+import 'dart:math' as math;
 
 class TopicPostWidget extends StatefulWidget {
   final Topic topic;
   final VoidCallback? onForgetPressed;
   final String directory;
   final CredentialsManager credentialsManager;
+  final TextEditingController? debugController;
 
   const TopicPostWidget({
     super.key,
@@ -18,6 +20,7 @@ class TopicPostWidget extends StatefulWidget {
     required this.directory,
     required this.credentialsManager,
     this.onForgetPressed,
+    this.debugController,
   });
 
   @override
@@ -222,72 +225,81 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
         title: Text('Reply to ${widget.topic.handle}'),
         content: SizedBox(
           width: 640,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RawKeyboardListener(
-                focusNode: FocusNode(),
-                onKey: (RawKeyEvent event) {
-                  if (event is RawKeyDownEvent &&
-                      event.logicalKey == LogicalKeyboardKey.tab) {
-                    _replyController.value = TextEditingValue(
-                      text: _replyController.text.replaceRange(
-                        _replyController.selection.start,
-                        _replyController.selection.end,
-                        '    ',
-                      ),
-                      selection: TextSelection.collapsed(
-                        offset: _replyController.selection.start + 4,
-                      ),
-                    );
-                    return null;
-                  }
+          child: RawKeyboardListener(
+            focusNode: FocusNode(),
+            onKey: (RawKeyEvent event) {
+              if (event is RawKeyDownEvent) {
+                // Handle tab key
+                if (event.logicalKey == LogicalKeyboardKey.tab) {
+                  _replyController.value = TextEditingValue(
+                    text: _replyController.text.replaceRange(
+                      _replyController.selection.start,
+                      _replyController.selection.end,
+                      '    ',
+                    ),
+                    selection: TextSelection.collapsed(
+                      offset: _replyController.selection.start + 4,
+                    ),
+                  );
                   return null;
-                },
-                child: Focus(
-                  onKey: (node, event) {
-                    if (event.logicalKey == LogicalKeyboardKey.tab) {
-                      return KeyEventResult.handled;
-                    }
-                    return KeyEventResult.ignored;
-                  },
-                  child: TextField(
-                    controller: _replyController,
-                    maxLines: 8,
-                    style: const TextStyle(
-                      fontFamily: 'Courier New',
-                      fontSize: 14,
-                    ),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Type your reply here...',
-                      contentPadding: EdgeInsets.all(12),
-                    ),
-                    onEditingComplete: () {},
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    onTap: () {
-                      FocusScope.of(context).requestFocus();
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _outputController,
-                maxLines: 10,
-                readOnly: true,
+                }
+
+                // Handle numpad navigation
+                if (event.physicalKey == PhysicalKeyboardKey.numpad4) {
+                  _handleTextNavigation(
+                      LogicalKeyboardKey.arrowLeft, _replyController);
+                } else if (event.physicalKey == PhysicalKeyboardKey.numpad6) {
+                  _handleTextNavigation(
+                      LogicalKeyboardKey.arrowRight, _replyController);
+                } else if (event.physicalKey == PhysicalKeyboardKey.numpad8) {
+                  _handleTextNavigation(
+                      LogicalKeyboardKey.arrowUp, _replyController);
+                } else if (event.physicalKey == PhysicalKeyboardKey.numpad2) {
+                  _handleTextNavigation(
+                      LogicalKeyboardKey.arrowDown, _replyController);
+                } else if (event.physicalKey == PhysicalKeyboardKey.numpad7) {
+                  _handleTextNavigation(
+                      LogicalKeyboardKey.home, _replyController);
+                } else if (event.physicalKey == PhysicalKeyboardKey.numpad1) {
+                  _handleTextNavigation(
+                      LogicalKeyboardKey.end, _replyController);
+                } else if (event.physicalKey == PhysicalKeyboardKey.numpad9) {
+                  _handleTextNavigation(
+                      LogicalKeyboardKey.pageUp, _replyController);
+                } else if (event.physicalKey == PhysicalKeyboardKey.numpad3) {
+                  _handleTextNavigation(
+                      LogicalKeyboardKey.pageDown, _replyController);
+                }
+              }
+              return null;
+            },
+            child: Focus(
+              onKey: (node, event) {
+                if (event.logicalKey == LogicalKeyboardKey.tab) {
+                  return KeyEventResult.handled;
+                }
+                return KeyEventResult.ignored;
+              },
+              child: TextField(
+                controller: _replyController,
+                maxLines: 8,
                 style: const TextStyle(
                   fontFamily: 'Courier New',
                   fontSize: 14,
                 ),
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  hintText: 'Command output...',
+                  hintText: 'Type your reply here...',
                   contentPadding: EdgeInsets.all(12),
                 ),
+                onEditingComplete: () {},
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                onTap: () {
+                  FocusScope.of(context).requestFocus();
+                },
               ),
-            ],
+            ),
           ),
         ),
         actions: [
@@ -359,6 +371,10 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                 } else {
                   throw Exception(process.stderr.toString());
                 }
+
+                if (widget.debugController != null) {
+                  widget.debugController!.text = _outputController.text;
+                }
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -376,5 +392,159 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
         ],
       ),
     );
+  }
+
+  void _showDebugDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Post Debug Output',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const Divider(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: SelectableText(_outputController.text),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleTextNavigation(
+      LogicalKeyboardKey key, TextEditingController controller) {
+    final selection = controller.selection;
+    final text = controller.text;
+
+    switch (key) {
+      case LogicalKeyboardKey.arrowLeft:
+        if (selection.start > 0) {
+          controller.selection = TextSelection.collapsed(
+            offset: selection.start - 1,
+          );
+        }
+        break;
+      case LogicalKeyboardKey.arrowRight:
+        if (selection.start < text.length) {
+          controller.selection = TextSelection.collapsed(
+            offset: selection.start + 1,
+          );
+        }
+        break;
+      case LogicalKeyboardKey.arrowUp:
+        // Handle empty text or cursor at start
+        if (text.isEmpty || selection.start == 0) {
+          controller.selection = const TextSelection.collapsed(offset: 0);
+          break;
+        }
+
+        // Find the start of the current line
+        final lineStart = text.lastIndexOf('\n', selection.start - 1);
+        if (lineStart == -1) {
+          // We're on the first line, just move to start
+          controller.selection = const TextSelection.collapsed(offset: 0);
+          break;
+        }
+
+        final prevLineStart = text.lastIndexOf('\n', lineStart - 1);
+        // Calculate column position, handling first line case
+        final currentLineStart = lineStart + 1;
+        final column = selection.start - currentLineStart;
+
+        // Handle case when moving to first line
+        if (prevLineStart == -1) {
+          // Find first line length, handling case where there's no newline
+          final firstNewline = text.indexOf('\n');
+          final firstLineLength =
+              firstNewline == -1 ? text.length : firstNewline;
+          final newOffset = math.min(column, firstLineLength);
+          controller.selection =
+              TextSelection.collapsed(offset: math.max(0, newOffset));
+          break;
+        }
+
+        final prevLineLength = lineStart - (prevLineStart + 1);
+        final newOffset =
+            (prevLineStart + 1 + math.min(column, prevLineLength)).toInt();
+        controller.selection =
+            TextSelection.collapsed(offset: math.max(0, newOffset));
+        break;
+      case LogicalKeyboardKey.arrowDown:
+        final lineStart = text.lastIndexOf('\n', selection.start);
+        final nextLineStart = text.indexOf('\n', selection.start);
+        if (nextLineStart == -1) {
+          // We're on the last line, move to end
+          controller.selection = TextSelection.collapsed(offset: text.length);
+          break;
+        }
+        final column = selection.start - (lineStart + 1);
+        final nextLineEnd = text.indexOf('\n', nextLineStart + 1);
+        final nextLineLength = nextLineEnd == -1
+            ? text.length - (nextLineStart + 1)
+            : nextLineEnd - (nextLineStart + 1);
+        final newOffset =
+            (nextLineStart + 1 + math.min(column, nextLineLength)).toInt();
+        controller.selection = TextSelection.collapsed(offset: newOffset);
+        break;
+      case LogicalKeyboardKey.pageUp:
+      case LogicalKeyboardKey.pageDown:
+        final linesPerPage = 10;
+        final direction = key == LogicalKeyboardKey.pageUp ? -1 : 1;
+        var currentPos = selection.start;
+        var remainingLines = linesPerPage;
+
+        while (remainingLines > 0) {
+          if (direction == -1) {
+            final lineStart = text.lastIndexOf('\n', currentPos - 1);
+            if (lineStart == -1) {
+              currentPos = 0;
+              break;
+            }
+            currentPos = lineStart + 1;
+          } else {
+            final nextLineStart = text.indexOf('\n', currentPos);
+            if (nextLineStart == -1) {
+              currentPos = text.length;
+              break;
+            }
+            currentPos = nextLineStart + 1;
+          }
+          remainingLines--;
+        }
+        controller.selection = TextSelection.collapsed(offset: currentPos);
+        break;
+      case LogicalKeyboardKey.home:
+        controller.selection = const TextSelection.collapsed(offset: 0);
+        break;
+      case LogicalKeyboardKey.end:
+        controller.selection = TextSelection.collapsed(
+          offset: text.length,
+        );
+        break;
+      default:
+        break;
+    }
   }
 }

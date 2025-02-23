@@ -91,6 +91,9 @@ class _CommandInterfaceState extends State<CommandInterface>
 
   final _topicPostsContainerKey = GlobalKey<TopicPostsContainerState>();
 
+  // Add a controller for post debug output
+  final TextEditingController _postDebugController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -348,6 +351,8 @@ class _CommandInterfaceState extends State<CommandInterface>
                   _showLoginDialog();
                 } else if (value == 'debug') {
                   _showDebugDialog(context);
+                } else if (value == 'post_debug') {
+                  _showPostDebugDialog(context);
                 }
               },
               itemBuilder: (context) => [
@@ -358,6 +363,10 @@ class _CommandInterfaceState extends State<CommandInterface>
                 const PopupMenuItem(
                   value: 'debug',
                   child: Text('Debug View'),
+                ),
+                const PopupMenuItem(
+                  value: 'post_debug',
+                  child: Text('Post Debug'),
                 ),
               ],
             ),
@@ -613,6 +622,7 @@ class _CommandInterfaceState extends State<CommandInterface>
                                   topic: _selectedTopic!,
                                   directory: _directoryController.text.trim(),
                                   credentialsManager: _credentialsManager,
+                                  debugController: _postDebugController,
                                   onForgetPressed: () {
                                     setState(() {
                                       _outputController.text +=
@@ -1079,6 +1089,45 @@ class _CommandInterfaceState extends State<CommandInterface>
               Expanded(
                 child: SingleChildScrollView(
                   child: SelectableText(_outputController.text),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPostDebugDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Post Debug Output',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const Divider(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: SelectableText(_postDebugController.text),
                 ),
               ),
             ],
