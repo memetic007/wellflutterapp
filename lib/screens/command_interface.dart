@@ -781,6 +781,9 @@ class _CommandInterfaceState extends State<CommandInterface>
                           child: TopicPostsContainer(
                             key: _topicPostsContainerKey,
                             topics: _currentTopics,
+                            debugController: _postDebugController,
+                            credentialsManager: _credentialsManager,
+                            directory: _directoryController.text.trim(),
                             onPrevious: _currentTopicIndex > 0
                                 ? () {
                                     setState(() {
