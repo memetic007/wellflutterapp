@@ -513,21 +513,30 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
 
         // Handle case when moving to first line
         if (prevLineStart == -1) {
-          // Find first line length, handling case where there's no newline
-          final firstNewline = text.indexOf('\n');
-          final firstLineLength =
-              firstNewline == -1 ? text.length : firstNewline;
+          // If first line is empty (starts with newline), just move to start
+          if (text.isNotEmpty && text[0] == '\n') {
+            controller.selection = const TextSelection.collapsed(offset: 0);
+            break;
+          }
+          // Otherwise preserve column position in first line
+          final firstLineEnd = text.indexOf('\n');
+          final firstLineLength = firstLineEnd == -1 ? text.length : firstLineEnd;
           final newOffset = math.min(column, firstLineLength);
-          controller.selection =
-              TextSelection.collapsed(offset: math.max(0, newOffset));
+          controller.selection = TextSelection.collapsed(offset: math.max(0, newOffset));
           break;
         }
 
+        // Check if previous line is empty
+        if (lineStart - prevLineStart == 1) {
+          // Previous line is empty, move to its start
+          controller.selection = TextSelection.collapsed(offset: prevLineStart + 1);
+          break;
+        }
+
+        // Normal column preservation for non-empty lines
         final prevLineLength = lineStart - (prevLineStart + 1);
-        final newOffset =
-            (prevLineStart + 1 + math.min(column, prevLineLength)).toInt();
-        controller.selection =
-            TextSelection.collapsed(offset: math.max(0, newOffset));
+        final newOffset = (prevLineStart + 1 + math.min(column, prevLineLength)).toInt();
+        controller.selection = TextSelection.collapsed(offset: math.max(0, newOffset));
         break;
       case LogicalKeyboardKey.arrowDown:
         final lineStart = text.lastIndexOf('\n', selection.start);
