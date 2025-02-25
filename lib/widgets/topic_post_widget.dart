@@ -7,6 +7,7 @@ import '../utils/credentials_manager.dart';
 import 'text_editor_with_nav.dart';
 import '../services/post_debug_service.dart';
 import '../models/post_debug_entry.dart';
+import 'dart:convert';
 
 class TopicPostWidget extends StatefulWidget {
   final Topic topic;
@@ -269,11 +270,9 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                 // Clear the debug output first
                 _outputController.clear();
 
-                // Get the text and escape it
+                // Get the text and convert to base64
                 final replyText = _replyController.text;
-                final escapedText = replyText
-                    .replaceAll('"', '\\"')
-                    .replaceAll('\n', '\\n');
+                final replyContent = base64.encode(utf8.encode(replyText));
 
                 // Get credentials
                 final username = await widget.credentialsManager.getUsername();
@@ -283,16 +282,21 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                   throw Exception('Username or password not found');
                 }
 
-                // Build the command with the pipeline as the command argument
+                // Build the command with the new format
                 final currentDirectory = widget.directory.trim();
                 if (currentDirectory.isEmpty) {
                   throw Exception('Directory is empty');
                 }
 
-                // Build the command with simple pipeline
-                final command = 'cd "$currentDirectory" ; python remoteexec.py --username $username --password $password --input "$escapedText" "cat ^| post freefire.ind 19"';
+                // Hard-code values for testing
+                final conf = "freefire.ind";
+                final topic = "19";
+
+                // Build the new command format
+                final command = 'cd "$currentDirectory" ; python post.py -debug --username $username --password $password --conf $conf --topic $topic $replyContent';
 
                 // Add to debug output
+                _outputController.text += 'Widget: TopicPostWidget\n';
                 _outputController.text += '\nExecuting command in directory: $currentDirectory\n';
                 _outputController.text += 'Command:\n$command\n';
 
@@ -321,6 +325,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                     stderr: process.stderr.toString(),
                     originalText: replyText,
                     success: process.exitCode == 0,
+                    widgetSource: 'TopicPostWidget',
                   ),
                 );
 

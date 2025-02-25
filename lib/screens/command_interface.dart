@@ -15,7 +15,7 @@ import 'dart:convert';
 import '../main.dart' show displayLabel;
 import '../services/post_debug_service.dart';
 import '../widgets/post_debug_dialog.dart';
-import 'package:file_picker/file_picker.dart';
+import '../widgets/directory_picker_dialog.dart';
 
 // Define intents at file level
 class NavigateLeftIntent extends Intent {
@@ -462,14 +462,8 @@ class _CommandInterfaceState extends State<CommandInterface>
                           ),
                           IconButton(
                             icon: const Icon(Icons.folder_open),
-                            onPressed: () async {
-                              String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-                              if (selectedDirectory != null) {
-                                setState(() {
-                                  _directoryController.text = selectedDirectory;
-                                  _outputController.text += '\nDirectory changed to: $selectedDirectory\n';
-                                });
-                              }
+                            onPressed: () {
+                              _selectDirectory();
                             },
                           ),
                         ],
@@ -1065,5 +1059,27 @@ class _CommandInterfaceState extends State<CommandInterface>
       context: context,
       builder: (context) => const PostDebugDialog(),
     );
+  }
+
+  void _selectDirectory() async {
+    final String? selectedPath = await showDialog<String>(
+      context: context,
+      builder: (context) => DirectoryPickerDialog(
+        initialDirectory: _directoryController.text,
+      ),
+    );
+    
+    if (selectedPath != null && selectedPath.isNotEmpty) {
+      setState(() {
+        _directoryController.text = selectedPath;
+        _outputController.text += '\nDirectory changed to: $selectedPath\n';
+        
+        // Save the directory
+        _saveDirectory();
+        
+        // Try to load confs from the new directory
+        _loadConfsFromFile();
+      });
+    }
   }
 }

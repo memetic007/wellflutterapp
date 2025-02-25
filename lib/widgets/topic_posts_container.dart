@@ -5,6 +5,12 @@ import 'post_widget.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'dart:math' as math;
 import 'text_editor_with_nav.dart';
+import 'dart:convert';
+import 'dart:io';
+import '../utils/credentials_manager.dart';
+import '../models/post_debug_entry.dart';
+import '../services/post_debug_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TopicPostsContainer extends StatefulWidget {
   final List<Topic> topics;
@@ -32,6 +38,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
   int _currentIndex = 0;
   bool _isScrolling = false;
   final Map<int, bool> _forgetStates = {};
+  final CredentialsManager credentialsManager = CredentialsManager();
 
   @override
   void initState() {
@@ -324,17 +331,86 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // TODO: Handle reply submission
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Reply submitted'),
-                  behavior: SnackBarBehavior.floating,
-                  width: MediaQuery.of(context).size.width * 0.3,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-              Navigator.of(context).pop();
+            onPressed: () async {
+              try {
+                // Get the text and convert to base64
+                final replyText = _replyController.text;
+                final replyContent = base64.encode(utf8.encode(replyText));
+
+                // Get credentials
+                final username = await credentialsManager.getUsername();
+                final password = await credentialsManager.getPassword();
+
+                if (username == null || password == null) {
+                  throw Exception('Username or password not found');
+                }
+
+                // Hard-code values for testing
+                final conf = "freefire.ind";
+                final topicNum = "19";
+
+                // Get current directory from shared preferences
+                final prefs = await SharedPreferences.getInstance();
+                final currentDirectory = prefs.getString('last_directory') ?? '';
+                
+                if (currentDirectory.isEmpty) {
+                  throw Exception('Directory is not set');
+                }
+
+                // Build the new command format
+                final command = 'cd "$currentDirectory" ; python post.py -debug --username $username --password $password --conf $conf --topic $topicNum $replyContent';
+
+                // Create debug info string (but don't display it)
+                final debugInfo = 'Widget: TopicPostsContainer\n'
+                    'Executing command in directory: $currentDirectory\n'
+                    'Command:\n$command\n';
+
+                // Execute via powershell
+                final process = await Process.run(
+                  'powershell.exe',
+                  ['-Command', command],
+                  runInShell: true,
+                );
+
+                // Record post debug information with widget info
+                PostDebugService().addEntry(
+                  PostDebugEntry(
+                    timestamp: DateTime.now(),
+                    command: command,
+                    response: process.stdout.toString(),
+                    stderr: process.stderr.toString(),
+                    originalText: replyText,
+                    success: process.exitCode == 0,
+                    widgetSource: 'TopicPostsContainer', // Add widget source
+                  ),
+                );
+
+                // Show result
+                if (process.exitCode == 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Reply submitted successfully'),
+                      behavior: SnackBarBehavior.floating,
+                      width: MediaQuery.of(context).size.width * 0.3,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                } else {
+                  throw Exception(process.stderr.toString());
+                }
+                
+                Navigator.of(context).pop();
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error sending reply: $e'),
+                    behavior: SnackBarBehavior.floating,
+                    width: MediaQuery.of(context).size.width * 0.3,
+                    duration: const Duration(seconds: 2),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             child: const Text('Submit'),
           ),

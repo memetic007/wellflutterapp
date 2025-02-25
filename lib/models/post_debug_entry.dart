@@ -5,6 +5,7 @@ class PostDebugEntry {
   final String stderr;
   final String originalText;
   final bool success;
+  final String widgetSource;
 
   PostDebugEntry({
     required this.timestamp,
@@ -13,5 +14,6 @@ class PostDebugEntry {
     required this.stderr,
     required this.originalText,
     required this.success,
+    this.widgetSource = 'Unknown',
   });
 } 
