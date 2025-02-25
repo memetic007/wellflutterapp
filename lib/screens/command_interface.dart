@@ -13,6 +13,9 @@ import '../widgets/topic_posts_container.dart';
 import '../widgets/topic_post_widget.dart';
 import 'dart:convert';
 import '../main.dart' show displayLabel;
+import '../services/post_debug_service.dart';
+import '../widgets/post_debug_dialog.dart';
+import 'package:file_picker/file_picker.dart';
 
 // Define intents at file level
 class NavigateLeftIntent extends Intent {
@@ -348,6 +351,8 @@ class _CommandInterfaceState extends State<CommandInterface>
                   _showLoginDialog();
                 } else if (value == 'debug') {
                   _showDebugDialog(context);
+                } else if (value == 'post_debug') {
+                  _showPostDebugDialog(context);
                 }
               },
               itemBuilder: (context) => [
@@ -358,6 +363,10 @@ class _CommandInterfaceState extends State<CommandInterface>
                 const PopupMenuItem(
                   value: 'debug',
                   child: Text('Debug View'),
+                ),
+                const PopupMenuItem(
+                  value: 'post_debug',
+                  child: Text('Post Debug'),
                 ),
               ],
             ),
@@ -421,7 +430,7 @@ class _CommandInterfaceState extends State<CommandInterface>
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Directory input row
+              // Directory picker row
               Row(
                 children: [
                   const Text(
@@ -429,46 +438,41 @@ class _CommandInterfaceState extends State<CommandInterface>
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   ),
                   Expanded(
-                    child: Focus(
-                      onKeyEvent: (FocusNode node, KeyEvent event) {
-                        if (event is KeyDownEvent) {
-                          // Handle physical keys for numpad
-                          if (event.physicalKey ==
-                              PhysicalKeyboardKey.numpad4) {
-                            _handleDirectoryArrowKey(
-                                LogicalKeyboardKey.arrowLeft);
-                            return KeyEventResult.handled;
-                          } else if (event.physicalKey ==
-                              PhysicalKeyboardKey.numpad6) {
-                            _handleDirectoryArrowKey(
-                                LogicalKeyboardKey.arrowRight);
-                            return KeyEventResult.handled;
-                          } else if (event.physicalKey ==
-                              PhysicalKeyboardKey.numpad7) {
-                            _handleDirectoryArrowKey(LogicalKeyboardKey.home);
-                            return KeyEventResult.handled;
-                          } else if (event.physicalKey ==
-                              PhysicalKeyboardKey.numpad1) {
-                            _handleDirectoryArrowKey(LogicalKeyboardKey.end);
-                            return KeyEventResult.handled;
-                          }
-                        }
-                        return KeyEventResult.ignored;
-                      },
-                      child: SizedBox(
-                        height: 40,
-                        child: TextField(
-                          controller: _directoryController,
-                          decoration: const InputDecoration(
-                            labelText: 'Directory',
-                            border: OutlineInputBorder(),
+                    child: Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: Text(
+                                _directoryController.text.isEmpty 
+                                    ? 'No directory selected' 
+                                    : _directoryController.text,
+                                overflow: TextOverflow.ellipsis,
+                                style: _directoryController.text.isEmpty
+                                    ? TextStyle(color: Colors.grey[600], fontSize: 14)
+                                    : const TextStyle(fontSize: 14),
+                              ),
+                            ),
                           ),
-                          onSubmitted: (value) {
-                            setState(() {
-                              _directoryController.text = value;
-                            });
-                          },
-                        ),
+                          IconButton(
+                            icon: const Icon(Icons.folder_open),
+                            onPressed: () async {
+                              String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+                              if (selectedDirectory != null) {
+                                setState(() {
+                                  _directoryController.text = selectedDirectory;
+                                  _outputController.text += '\nDirectory changed to: $selectedDirectory\n';
+                                });
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1017,38 +1021,6 @@ class _CommandInterfaceState extends State<CommandInterface>
     return KeyEventResult.handled;
   }
 
-  void _handleDirectoryArrowKey(LogicalKeyboardKey key) {
-    final TextEditingController controller = _directoryController;
-    final selection = controller.selection;
-
-    switch (key) {
-      case LogicalKeyboardKey.arrowLeft:
-        if (selection.start > 0) {
-          controller.selection = TextSelection.collapsed(
-            offset: selection.start - 1,
-          );
-        }
-        break;
-      case LogicalKeyboardKey.arrowRight:
-        if (selection.start < controller.text.length) {
-          controller.selection = TextSelection.collapsed(
-            offset: selection.start + 1,
-          );
-        }
-        break;
-      case LogicalKeyboardKey.home:
-        controller.selection = const TextSelection.collapsed(offset: 0);
-        break;
-      case LogicalKeyboardKey.end:
-        controller.selection = TextSelection.collapsed(
-          offset: controller.text.length,
-        );
-        break;
-      default:
-        break;
-    }
-  }
-
   void _showDebugDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -1085,6 +1057,13 @@ class _CommandInterfaceState extends State<CommandInterface>
           ),
         ),
       ),
+    );
+  }
+
+  void _showPostDebugDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const PostDebugDialog(),
     );
   }
 }

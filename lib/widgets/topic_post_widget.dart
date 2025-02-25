@@ -4,6 +4,9 @@ import '../models/topic.dart';
 import 'post_widget.dart';
 import 'dart:io';
 import '../utils/credentials_manager.dart';
+import 'text_editor_with_nav.dart';
+import '../services/post_debug_service.dart';
+import '../models/post_debug_entry.dart';
 
 class TopicPostWidget extends StatefulWidget {
   final Topic topic;
@@ -217,30 +220,39 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
           width: 640,
           child: Column(
             children: [
-              TextField(
-                controller: _replyController,
-                maxLines: 8,
-                style: const TextStyle(
-                  fontFamily: 'Courier New',
-                  fontSize: 14,
-                ),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Type your reply here...',
-                  contentPadding: EdgeInsets.all(12),
+              Expanded(
+                child: TextEditorWithNav(
+                  controller: _replyController,
+                  autofocus: true,
+                  style: const TextStyle(
+                    fontFamily: 'Courier New',
+                    fontSize: 14,
+                  ),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Type your reply here...',
+                    contentPadding: EdgeInsets.all(12),
+                  ),
+                  maxLines: null,
+                  expands: true,
                 ),
               ),
-              TextField(
-                controller: _outputController,
-                maxLines: 10,
-                style: const TextStyle(
-                  fontFamily: 'Courier New',
-                  fontSize: 14,
-                ),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Command output...',
-                  contentPadding: EdgeInsets.all(12),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 100,
+                child: TextField(
+                  controller: _outputController,
+                  maxLines: null,
+                  readOnly: true,
+                  style: const TextStyle(
+                    fontFamily: 'Courier New',
+                    fontSize: 12,
+                  ),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Command output...',
+                    contentPadding: EdgeInsets.all(12),
+                  ),
                 ),
               ),
             ],
@@ -299,6 +311,18 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
 
                 // Add the original post text
                 _outputController.text += '\nOriginal post text:\n${_replyController.text}\n';
+
+                // Record post debug information
+                PostDebugService().addEntry(
+                  PostDebugEntry(
+                    timestamp: DateTime.now(),
+                    command: command,
+                    response: process.stdout.toString(),
+                    stderr: process.stderr.toString(),
+                    originalText: replyText,
+                    success: process.exitCode == 0,
+                  ),
+                );
 
                 // Show result
                 if (process.exitCode == 0) {

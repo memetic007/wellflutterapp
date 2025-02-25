@@ -4,6 +4,7 @@ import '../models/topic.dart';
 import 'post_widget.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'dart:math' as math;
+import 'text_editor_with_nav.dart';
 
 class TopicPostsContainer extends StatefulWidget {
   final List<Topic> topics;
@@ -293,16 +294,17 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
 
   void _showReplyDialog(BuildContext context, Topic topic) {
     final TextEditingController _replyController = TextEditingController();
-
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Reply to ${topic.handle}'),
         content: SizedBox(
-          width: 640, // 80 chars * 8 pixels per char
-          child: TextField(
+          width: 640,
+          height: 400,
+          child: TextEditorWithNav(
             controller: _replyController,
-            maxLines: 8,
+            autofocus: true,
             style: const TextStyle(
               fontFamily: 'Courier New',
               fontSize: 14,
@@ -312,6 +314,8 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
               hintText: 'Type your reply here...',
               contentPadding: EdgeInsets.all(12),
             ),
+            maxLines: null,
+            expands: true,
           ),
         ),
         actions: [
