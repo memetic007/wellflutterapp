@@ -216,47 +216,24 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Reply to ${widget.topic.handle}'),
+        title: const Text('Reply'),
         content: SizedBox(
           width: 640,
-          child: Column(
-            children: [
-              Expanded(
-                child: TextEditorWithNav(
-                  controller: _replyController,
-                  autofocus: true,
-                  style: const TextStyle(
-                    fontFamily: 'Courier New',
-                    fontSize: 14,
-                  ),
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Type your reply here...',
-                    contentPadding: EdgeInsets.all(12),
-                  ),
-                  maxLines: null,
-                  expands: true,
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 100,
-                child: TextField(
-                  controller: _outputController,
-                  maxLines: null,
-                  readOnly: true,
-                  style: const TextStyle(
-                    fontFamily: 'Courier New',
-                    fontSize: 12,
-                  ),
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Command output...',
-                    contentPadding: EdgeInsets.all(12),
-                  ),
-                ),
-              ),
-            ],
+          height: 400,
+          child: TextEditorWithNav(
+            controller: _replyController,
+            autofocus: true,
+            style: const TextStyle(
+              fontFamily: 'Courier New',
+              fontSize: 14,
+            ),
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Type your reply here...',
+              contentPadding: EdgeInsets.all(12),
+            ),
+            maxLines: null,
+            expands: true,
           ),
         ),
         actions: [
@@ -267,9 +244,6 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
           ElevatedButton(
             onPressed: () async {
               try {
-                // Clear the debug output first
-                _outputController.clear();
-
                 // Get the text and convert to base64
                 final replyText = _replyController.text;
                 final replyContent = base64.encode(utf8.encode(replyText));
@@ -295,26 +269,12 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                 // Build the new command format
                 final command = 'cd "$currentDirectory" ; python post.py -debug --username $username --password $password --conf $conf --topic $topic $replyContent';
 
-                // Add to debug output
-                _outputController.text += 'Widget: TopicPostWidget\n';
-                _outputController.text += '\nExecuting command in directory: $currentDirectory\n';
-                _outputController.text += 'Command:\n$command\n';
-
                 // Execute via powershell
                 final process = await Process.run(
                   'powershell.exe',
                   ['-Command', command],
                   runInShell: true,
                 );
-
-                // Add command output to debug
-                _outputController.text += '\nCommand output:\n${process.stdout}\n';
-                if (process.stderr.toString().isNotEmpty) {
-                  _outputController.text += '\nErrors:\n${process.stderr}\n';
-                }
-
-                // Add the original post text
-                _outputController.text += '\nOriginal post text:\n${_replyController.text}\n';
 
                 // Record post debug information
                 PostDebugService().addEntry(
@@ -339,11 +299,10 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                       duration: const Duration(seconds: 2),
                     ),
                   );
+                  Navigator.of(context).pop();
                 } else {
                   throw Exception(process.stderr.toString());
                 }
-
-                Navigator.of(context).pop();
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

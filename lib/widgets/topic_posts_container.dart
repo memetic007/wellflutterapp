@@ -360,11 +360,6 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                 // Build the new command format
                 final command = 'cd "$currentDirectory" ; python post.py -debug --username $username --password $password --conf $conf --topic $topicNum $replyContent';
 
-                // Create debug info string (but don't display it)
-                final debugInfo = 'Widget: TopicPostsContainer\n'
-                    'Executing command in directory: $currentDirectory\n'
-                    'Command:\n$command\n';
-
                 // Execute via powershell
                 final process = await Process.run(
                   'powershell.exe',
@@ -381,7 +376,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                     stderr: process.stderr.toString(),
                     originalText: replyText,
                     success: process.exitCode == 0,
-                    widgetSource: 'TopicPostsContainer', // Add widget source
+                    widgetSource: 'TopicPostsContainer',
                   ),
                 );
 
@@ -395,11 +390,10 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                       duration: const Duration(seconds: 2),
                     ),
                   );
+                  Navigator.of(context).pop();
                 } else {
                   throw Exception(process.stderr.toString());
                 }
-                
-                Navigator.of(context).pop();
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
