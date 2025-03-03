@@ -11,12 +11,14 @@ import '../utils/credentials_manager.dart';
 import '../models/post_debug_entry.dart';
 import '../services/post_debug_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/well_api_service.dart';
 
 class TopicPostsContainer extends StatefulWidget {
   final List<Topic> topics;
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
   final VoidCallback? onForgetPressed;
+  final CredentialsManager credentialsManager;
 
   const TopicPostsContainer({
     super.key,
@@ -24,6 +26,7 @@ class TopicPostsContainer extends StatefulWidget {
     this.onPrevious,
     this.onNext,
     this.onForgetPressed,
+    required this.credentialsManager,
   });
 
   @override
@@ -38,7 +41,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
   int _currentIndex = 0;
   bool _isScrolling = false;
   final Map<int, bool> _forgetStates = {};
-  final CredentialsManager credentialsManager = CredentialsManager();
+  final WellApiService _apiService = WellApiService();
 
   @override
   void initState() {
@@ -299,12 +302,13 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
         (offset / 500.0); // 500.0 is approximate viewport height
   }
 
-  void _showReplyDialog(BuildContext context, Topic topic) {
+  void _showReplyDialog(BuildContext parentContext, Topic topic) {
     final TextEditingController _replyController = TextEditingController();
-    
+    final TextEditingController _outputController = TextEditingController();
+
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: parentContext,
+      builder: (dialogContext) => AlertDialog(
         title: Text('Reply to ${topic.handle}'),
         content: SizedBox(
           width: 640,
@@ -327,85 +331,80 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
               try {
-                // Get the text and convert to base64
                 final replyText = _replyController.text;
-                final replyContent = base64.encode(utf8.encode(replyText));
 
-                // Get credentials
-                final username = await credentialsManager.getUsername();
-                final password = await credentialsManager.getPassword();
+                // Ensure we have a connection first
+                if (!_apiService.isConnected) {
+                  final username =
+                      await widget.credentialsManager.getUsername();
+                  final password =
+                      await widget.credentialsManager.getPassword();
 
-                if (username == null || password == null) {
-                  throw Exception('Username or password not found');
+                  if (username == null || password == null) {
+                    throw Exception('Username or password not found');
+                  }
+
+                  final connectResult =
+                      await _apiService.connect(username, password);
+                  if (!connectResult['success']) {
+                    throw Exception(
+                        'Failed to connect: ${connectResult['error']}');
+                  }
                 }
 
-                // Hard-code values for testing
-                final conf = "freefire.ind";
-                final topicNum = "19";
+                // Send the reply using postReply instead of processText
+                final result = await _apiService.postReply(
+                  content: replyText,
+                  conference: 'test', // Use test conference for now
+                  topic: '2264', // Use test topic for now
+                );
 
-                // Get current directory from shared preferences
-                final prefs = await SharedPreferences.getInstance();
-                final currentDirectory = prefs.getString('last_directory') ?? '';
-                
-                if (currentDirectory.isEmpty) {
-                  throw Exception('Directory is not set');
+                // Add debug output
+                _outputController.text += 'Widget: TopicPostsContainer\n';
+                _outputController.text += '\nSending reply to: test.2264\n';
+
+                if (result['output'].isNotEmpty) {
+                  _outputController.text +=
+                      '\nResponse:\n${result['output']}\n';
                 }
 
-                // Build the new command format
-                final command = 'cd "$currentDirectory" ; python post.py -debug --username $username --password $password --conf $conf --topic $topicNum $replyContent';
-
-                // Create debug info string (but don't display it)
-                final debugInfo = 'Widget: TopicPostsContainer\n'
-                    'Executing command in directory: $currentDirectory\n'
-                    'Command:\n$command\n';
-
-                // Execute via powershell
-                final process = await Process.run(
-                  'powershell.exe',
-                  ['-Command', command],
-                  runInShell: true,
+                // Record debug information
+                final debugEntry = PostDebugEntry(
+                  timestamp: DateTime.now(),
+                  originalText: replyText,
+                  success: result['success'] ?? false,
+                  response: result['output'] ?? '',
+                  error: result['error'] ?? '',
                 );
-
-                // Record post debug information with widget info
-                PostDebugService().addEntry(
-                  PostDebugEntry(
-                    timestamp: DateTime.now(),
-                    command: command,
-                    response: process.stdout.toString(),
-                    stderr: process.stderr.toString(),
-                    originalText: replyText,
-                    success: process.exitCode == 0,
-                    widgetSource: 'TopicPostsContainer', // Add widget source
-                  ),
-                );
+                PostDebugService().addDebugEntry(
+                    debugEntry); // Just store the entry, don't make HTTP request
 
                 // Show result
-                if (process.exitCode == 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                if (result['success']) {
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
                     SnackBar(
-                      content: const Text('Reply submitted successfully'),
+                      content: const Text('Reply sent successfully'),
                       behavior: SnackBarBehavior.floating,
-                      width: MediaQuery.of(context).size.width * 0.3,
+                      width: MediaQuery.of(parentContext).size.width * 0.3,
                       duration: const Duration(seconds: 2),
                     ),
                   );
                 } else {
-                  throw Exception(process.stderr.toString());
+                  throw Exception(result['error']);
                 }
-                
-                Navigator.of(context).pop();
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(parentContext).showSnackBar(
                   SnackBar(
                     content: Text('Error sending reply: $e'),
                     behavior: SnackBarBehavior.floating,
-                    width: MediaQuery.of(context).size.width * 0.3,
+                    width: MediaQuery.of(parentContext).size.width * 0.3,
                     duration: const Duration(seconds: 2),
                     backgroundColor: Colors.red,
                   ),

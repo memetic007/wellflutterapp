@@ -16,6 +16,7 @@ import '../main.dart' show displayLabel;
 import '../services/post_debug_service.dart';
 import '../widgets/post_debug_dialog.dart';
 import '../widgets/directory_picker_dialog.dart';
+import '../services/well_api_service.dart';
 
 // Define intents at file level
 class NavigateLeftIntent extends Intent {
@@ -93,6 +94,8 @@ class _CommandInterfaceState extends State<CommandInterface>
   int _currentTopicIndex = 0;
 
   final _topicPostsContainerKey = GlobalKey<TopicPostsContainerState>();
+
+  final _apiService = WellApiService();
 
   @override
   void initState() {
@@ -180,85 +183,67 @@ class _CommandInterfaceState extends State<CommandInterface>
     }
   }
 
-  Future<void> _executeCommand() async {
+  Future<void> _executeCommand(String cmd) async {
     try {
       final username = await _credentialsManager.getUsername();
       final password = await _credentialsManager.getPassword();
 
       if (username == null || password == null) {
-        await _showLoginDialog();
-        return;
+        throw Exception('Username or password not found');
       }
 
-      final dir = _directoryController.text.trim();
-      final cmd = _commandController.text.trim();
-      if (cmd.isEmpty) return;
-
-      if (dir.isNotEmpty) {
-        await _saveDirectory();
-      }
-
-      await _saveCommand();
-
-      // Always use -conf mode
-      const makeObjectsCommand = 'python makeobjects2json.py -conf';
-
-      // Construct the Python command with the user input
-      final pythonCommand =
-          'python remoteexec.py --username $username --password $password -- "extract $cmd" | python extract2json.py | $makeObjectsCommand';
-
-      final fullCommand =
-          dir.isNotEmpty ? 'cd "$dir" ; $pythonCommand' : pythonCommand;
-
-      final process = await Process.run(
-        'powershell.exe',
-        ['-Command', fullCommand],
-        runInShell: true,
-      );
-
-      setState(() {
-        _outputController.clear();
-        _outputController.text += 'PS> $fullCommand\n';
-        _outputController.text += process.stdout.toString();
-        if (process.stderr.toString().isNotEmpty) {
-          _outputController.text += process.stderr.toString();
+      // First ensure we have a connection
+      if (!_apiService.isConnected) {
+        final connectResult = await _apiService.connect(username, password);
+        if (!connectResult['success']) {
+          throw Exception('Failed to connect: ${connectResult['error']}');
         }
-        _outputController.text += '\n';
+      }
+
+      // Now execute the command
+      final response = await _apiService.processCommand({
+        'command': cmd,
       });
 
-      // Process the output once
-      try {
-        final confs =
-            JsonProcessor.processConfOutput(process.stdout.toString());
+      setState(() {
+        if (response['success']) {
+          _outputController.text += '\n> $cmd\n';
 
-        // Extract all topics from all confs
-        final allTopics = <Topic>[];
-        for (var conf in confs) {
-          allTopics.addAll(conf.topics);
+          // Handle the conference list if available
+          if (response['conflist'] != null && response['conflist'].isNotEmpty) {
+            _outputController.text += '\nAvailable conferences:\n';
+            for (final conf in response['conflist']) {
+              _outputController.text += '- $conf\n';
+            }
+          }
+
+          // Handle the main response (JSON formatted conference data)
+          if (response['response'].isNotEmpty) {
+            try {
+              final jsonData = response['response'];
+              _processCommandResponse(jsonData);
+            } catch (e) {
+              _outputController.text += '\nError processing response: $e\n';
+              // Still show the raw response for debugging
+              _outputController.text +=
+                  '\nRaw Response:\n${response['response']}\n';
+            }
+          }
+
+          // Show any errors
+          if (response['error'].isNotEmpty) {
+            _outputController.text += '\nErrors:\n${response['error']}';
+          }
+        } else {
+          _outputController.text += '\nError: ${response['error']}';
         }
 
-        // Update the UI with the loaded topics
-        setState(() {
-          _currentConfs = confs;
-          _allTopics = allTopics;
-          _currentTopics = allTopics;
-          _selectedConf = null;
-          _selectedTopic = null;
-          _currentTopicIndex = 0;
-          _topicPostsContainerKey.currentState?.resetToStart();
-
-          _outputController.text +=
-              '\nSuccessfully loaded ${confs.length} conferences with ${allTopics.length} total topics from well_confs.json';
-        });
-
-        await _saveConfsToFile(confs);
-      } catch (e) {
-        _outputController.text += '\nError loading conference data: $e';
-      }
+        // Save the command
+        _saveCommand();
+      });
     } catch (e) {
       setState(() {
-        _outputController.text += 'PS> ${_commandController.text}\n';
-        _outputController.text += 'Error: $e\n\n';
+        _outputController.text += '\nError: $e';
       });
     }
   }
@@ -448,14 +433,16 @@ class _CommandInterfaceState extends State<CommandInterface>
                         children: [
                           Expanded(
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8.0),
                               child: Text(
-                                _directoryController.text.isEmpty 
-                                    ? 'No directory selected' 
+                                _directoryController.text.isEmpty
+                                    ? 'No directory selected'
                                     : _directoryController.text,
                                 overflow: TextOverflow.ellipsis,
                                 style: _directoryController.text.isEmpty
-                                    ? TextStyle(color: Colors.grey[600], fontSize: 14)
+                                    ? TextStyle(
+                                        color: Colors.grey[600], fontSize: 14)
                                     : const TextStyle(fontSize: 14),
                               ),
                             ),
@@ -496,13 +483,15 @@ class _CommandInterfaceState extends State<CommandInterface>
                             },
                           ),
                         ),
-                        onSubmitted: (_) => _executeCommand(),
+                        onSubmitted: (_) =>
+                            _executeCommand(_commandController.text.trim()),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
-                    onPressed: _executeCommand,
+                    onPressed: () =>
+                        _executeCommand(_commandController.text.trim()),
                     child: const Text('Submit'),
                   ),
                   const SizedBox(width: 8),
@@ -770,58 +759,13 @@ class _CommandInterfaceState extends State<CommandInterface>
                             key: _topicPostsContainerKey,
                             topics: _currentTopics,
                             onPrevious: _currentTopicIndex > 0
-                                ? () {
-                                    setState(() {
-                                      _currentTopicIndex--;
-                                    });
-                                  }
+                                ? _handlePreviousPressed
                                 : null,
-                            onNext:
-                                _currentTopicIndex < _currentTopics.length - 1
-                                    ? () {
-                                        setState(() {
-                                          _currentTopicIndex++;
-                                        });
-                                      }
-                                    : null,
-                            onForgetPressed: () {
-                              final topic = _currentTopics[_currentTopicIndex];
-                              setState(() {
-                                _outputController.text +=
-                                    '\nForget was pressed for topic: ${topic.handle}';
-                                WidgetsBinding.instance
-                                    .addPostFrameCallback((_) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.check_circle,
-                                              color: Colors.white),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              'Forget was pressed for topic: ${topic.handle}',
-                                              overflow: TextOverflow.visible,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      behavior: SnackBarBehavior.floating,
-                                      width: MediaQuery.of(context).size.width *
-                                          0.8,
-                                      backgroundColor: Colors.green,
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
-                                  _outputController.selection =
-                                      TextSelection.fromPosition(
-                                    TextPosition(
-                                        offset: _outputController.text.length),
-                                  );
-                                });
-                              });
-                            },
+                            onNext: _currentTopicIndex < _allTopics.length - 1
+                                ? _handleNextPressed
+                                : null,
+                            onForgetPressed: _handleForgetPressed,
+                            credentialsManager: _credentialsManager,
                           ),
                         ),
                       ],
@@ -1068,18 +1012,122 @@ class _CommandInterfaceState extends State<CommandInterface>
         initialDirectory: _directoryController.text,
       ),
     );
-    
+
     if (selectedPath != null && selectedPath.isNotEmpty) {
       setState(() {
         _directoryController.text = selectedPath;
         _outputController.text += '\nDirectory changed to: $selectedPath\n';
-        
+
         // Save the directory
         _saveDirectory();
-        
+
         // Try to load confs from the new directory
         _loadConfsFromFile();
       });
     }
+  }
+
+  void _processCommandResponse(dynamic jsonData) {
+    try {
+      if (jsonData is String) {
+        jsonData = jsonDecode(jsonData);
+      }
+
+      // Log the raw data for debugging
+      _outputController.text +=
+          '\nProcessing JSON data: ${jsonEncode(jsonData)}';
+
+      // Process conferences and topics
+      if (jsonData is List) {
+        final List<Conf> confs = [];
+
+        for (var confData in jsonData) {
+          try {
+            final conf = Conf.fromJson(confData);
+            confs.add(conf);
+          } catch (e) {
+            _outputController.text += '\nError processing conference: $e';
+          }
+        }
+
+        // Extract all topics from all confs
+        final allTopics = <Topic>[];
+        for (var conf in confs) {
+          allTopics.addAll(conf.topics);
+        }
+
+        setState(() {
+          _currentConfs = confs;
+          _allTopics = allTopics;
+          _currentTopics = allTopics;
+
+          _outputController.text +=
+              '\nLoaded ${confs.length} conferences with ${allTopics.length} total topics';
+
+          // Force the container to show the first topic
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_topicPostsContainerKey.currentState != null) {
+              _topicPostsContainerKey.currentState!.resetToStart();
+            }
+          });
+        });
+      } else {
+        throw Exception('Invalid JSON format: expected array of conferences');
+      }
+    } catch (e) {
+      _outputController.text += '\nError processing JSON: $e';
+      _outputController.text += '\nRaw data was: $jsonData';
+    }
+  }
+
+  void _handlePreviousPressed() {
+    setState(() {
+      if (_currentTopicIndex > 0) {
+        _currentTopicIndex--;
+      }
+    });
+  }
+
+  void _handleNextPressed() {
+    setState(() {
+      if (_currentTopicIndex < _allTopics.length - 1) {
+        _currentTopicIndex++;
+      }
+    });
+  }
+
+  void _handleForgetPressed() {
+    final topic = _currentTopics[_currentTopicIndex];
+    setState(() {
+      _outputController.text +=
+          '\nForget was pressed for topic: ${topic.handle}';
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Forget was pressed for topic: ${topic.handle}',
+                    overflow: TextOverflow.visible,
+                  ),
+                ),
+              ],
+            ),
+            behavior: SnackBarBehavior.floating,
+            width: MediaQuery.of(context).size.width * 0.8,
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        _outputController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _outputController.text.length),
+        );
+      });
+    });
   }
 }

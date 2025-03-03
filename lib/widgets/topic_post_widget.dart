@@ -8,6 +8,7 @@ import 'text_editor_with_nav.dart';
 import '../services/post_debug_service.dart';
 import '../models/post_debug_entry.dart';
 import 'dart:convert';
+import '../services/well_api_service.dart';
 
 class TopicPostWidget extends StatefulWidget {
   final Topic topic;
@@ -32,6 +33,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
   final FocusNode _focusNode = FocusNode();
   bool _isForgetChecked = false;
   final TextEditingController _outputController = TextEditingController();
+  late WellApiService _apiService;
 
   @override
   void initState() {
@@ -39,6 +41,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
+    _apiService = WellApiService();
   }
 
   void _handleKeyEvent(RawKeyEvent event) {
@@ -125,7 +128,8 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                       padding: const EdgeInsets.all(8.0),
                       decoration: BoxDecoration(
                         color: Colors.grey[300],
-                        border: Border(bottom: BorderSide(color: Colors.grey[400]!)),
+                        border: Border(
+                            bottom: BorderSide(color: Colors.grey[400]!)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -163,10 +167,13 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                                   setState(() {
                                     _isForgetChecked = value ?? false;
                                   });
-                                  if (value == true && widget.onForgetPressed != null) {
+                                  if (value == true &&
+                                      widget.onForgetPressed != null) {
                                     print('DEBUG - TopicPostWidget:');
-                                    print('  - Topic title: "${widget.topic.title}"');
-                                    print('  - Topic handle: "${widget.topic.handle}"');
+                                    print(
+                                        '  - Topic title: "${widget.topic.title}"');
+                                    print(
+                                        '  - Topic handle: "${widget.topic.handle}"');
                                     print('  - Full topic: ${widget.topic}');
                                     widget.onForgetPressed!();
                                   }
@@ -186,7 +193,9 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                           controller: _scrollController,
                           child: Column(
                             children: [
-                              ...widget.topic.posts.map((post) => PostWidget(post: post)).toList(),
+                              ...widget.topic.posts
+                                  .map((post) => PostWidget(post: post))
+                                  .toList(),
                               Padding(
                                 padding: const EdgeInsets.all(16.0),
                                 child: ElevatedButton.icon(
@@ -210,12 +219,13 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
     );
   }
 
-  void _showReplyDialog(BuildContext context) {
+  void _showReplyDialog(BuildContext parentContext) {
     final TextEditingController _replyController = TextEditingController();
-    
+    final TextEditingController _outputController = TextEditingController();
+
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: parentContext,
+      builder: (dialogContext) => AlertDialog(
         title: Text('Reply to ${widget.topic.handle}'),
         content: SizedBox(
           width: 640,
@@ -261,7 +271,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
@@ -270,86 +280,74 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                 // Clear the debug output first
                 _outputController.clear();
 
-                // Get the text and convert to base64
                 final replyText = _replyController.text;
-                final replyContent = base64.encode(utf8.encode(replyText));
 
-                // Get credentials
-                final username = await widget.credentialsManager.getUsername();
-                final password = await widget.credentialsManager.getPassword();
+                // Ensure we have a connection first
+                if (!_apiService.isConnected) {
+                  final username =
+                      await widget.credentialsManager.getUsername();
+                  final password =
+                      await widget.credentialsManager.getPassword();
 
-                if (username == null || password == null) {
-                  throw Exception('Username or password not found');
+                  if (username == null || password == null) {
+                    throw Exception('Username or password not found');
+                  }
+
+                  final connectResult =
+                      await _apiService.connect(username, password);
+                  if (!connectResult['success']) {
+                    throw Exception(
+                        'Failed to connect: ${connectResult['error']}');
+                  }
                 }
 
-                // Build the command with the new format
-                final currentDirectory = widget.directory.trim();
-                if (currentDirectory.isEmpty) {
-                  throw Exception('Directory is empty');
-                }
+                // Send the reply
+                final result = await _apiService.postReply(
+                  content: replyText,
+                  conference: widget.topic.conf,
+                  topic: widget.topic.number.toString(),
+                );
 
-                // Hard-code values for testing
-                final conf = "freefire.ind";
-                final topic = "19";
-
-                // Build the new command format
-                final command = 'cd "$currentDirectory" ; python post.py -debug --username $username --password $password --conf $conf --topic $topic $replyContent';
-
-                // Add to debug output
+                // Add debug output
                 _outputController.text += 'Widget: TopicPostWidget\n';
-                _outputController.text += '\nExecuting command in directory: $currentDirectory\n';
-                _outputController.text += 'Command:\n$command\n';
+                _outputController.text +=
+                    '\nSending reply to: ${widget.topic.conf}.${widget.topic.number}\n';
 
-                // Execute via powershell
-                final process = await Process.run(
-                  'powershell.exe',
-                  ['-Command', command],
-                  runInShell: true,
-                );
-
-                // Add command output to debug
-                _outputController.text += '\nCommand output:\n${process.stdout}\n';
-                if (process.stderr.toString().isNotEmpty) {
-                  _outputController.text += '\nErrors:\n${process.stderr}\n';
+                if (result['output'].isNotEmpty) {
+                  _outputController.text +=
+                      '\nResponse:\n${result['output']}\n';
                 }
 
-                // Add the original post text
-                _outputController.text += '\nOriginal post text:\n${_replyController.text}\n';
-
-                // Record post debug information
-                PostDebugService().addEntry(
-                  PostDebugEntry(
-                    timestamp: DateTime.now(),
-                    command: command,
-                    response: process.stdout.toString(),
-                    stderr: process.stderr.toString(),
-                    originalText: replyText,
-                    success: process.exitCode == 0,
-                    widgetSource: 'TopicPostWidget',
-                  ),
+                // Record debug information
+                final debugEntry = PostDebugEntry(
+                  timestamp: DateTime.now(),
+                  originalText: replyText,
+                  success: result['success'] ?? false,
+                  response: result['output'] ?? '',
+                  error: result['error'] ?? '',
                 );
+                PostDebugService().addDebugEntry(debugEntry);
 
                 // Show result
-                if (process.exitCode == 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                if (result['success']) {
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
                     SnackBar(
                       content: const Text('Reply sent successfully'),
                       behavior: SnackBarBehavior.floating,
-                      width: MediaQuery.of(context).size.width * 0.3,
+                      width: MediaQuery.of(parentContext).size.width * 0.3,
                       duration: const Duration(seconds: 2),
                     ),
                   );
                 } else {
-                  throw Exception(process.stderr.toString());
+                  throw Exception(result['error']);
                 }
-
-                Navigator.of(context).pop();
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(parentContext).showSnackBar(
                   SnackBar(
                     content: Text('Error sending reply: $e'),
                     behavior: SnackBarBehavior.floating,
-                    width: MediaQuery.of(context).size.width * 0.3,
+                    width: MediaQuery.of(parentContext).size.width * 0.3,
                     duration: const Duration(seconds: 2),
                     backgroundColor: Colors.red,
                   ),

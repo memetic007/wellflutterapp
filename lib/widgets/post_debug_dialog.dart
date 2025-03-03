@@ -17,21 +17,21 @@ class _PostDebugDialogState extends State<PostDebugDialog> {
   // Simple date formatter function
   String formatDateTime(DateTime dateTime) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
-    
+
     final year = dateTime.year;
     final month = twoDigits(dateTime.month);
     final day = twoDigits(dateTime.day);
     final hour = twoDigits(dateTime.hour);
     final minute = twoDigits(dateTime.minute);
     final second = twoDigits(dateTime.second);
-    
+
     return '$year-$month-$day $hour:$minute:$second';
   }
 
   @override
   Widget build(BuildContext context) {
     final entries = PostDebugService().getEntries();
-    
+
     return Dialog(
       child: Container(
         width: MediaQuery.of(context).size.width * 0.8,
@@ -44,7 +44,9 @@ class _PostDebugDialogState extends State<PostDebugDialog> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  _selectedEntry == null ? 'Post Debug History' : 'Post Debug Details',
+                  _selectedEntry == null
+                      ? 'Post Debug History'
+                      : 'Post Debug Details',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -97,7 +99,8 @@ class _PostDebugDialogState extends State<PostDebugDialog> {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (entry.widgetSource != null && entry.widgetSource.isNotEmpty)
+                                if (entry.widgetSource != null &&
+                                    entry.widgetSource!.isNotEmpty)
                                   Text('Source: ${entry.widgetSource}'),
                                 Text(
                                   entry.originalText.length > 50
@@ -141,7 +144,8 @@ class _PostDebugDialogState extends State<PostDebugDialog> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         'Time: ${formatDateTime(_selectedEntry!.timestamp)}',
@@ -150,13 +154,18 @@ class _PostDebugDialogState extends State<PostDebugDialog> {
                                         ),
                                       ),
                                       Icon(
-                                        _selectedEntry!.success ? Icons.check_circle : Icons.error,
-                                        color: _selectedEntry!.success ? Colors.green : Colors.red,
+                                        _selectedEntry!.success
+                                            ? Icons.check_circle
+                                            : Icons.error,
+                                        color: _selectedEntry!.success
+                                            ? Colors.green
+                                            : Colors.red,
                                       ),
                                     ],
                                   ),
-                                  if (_selectedEntry!.widgetSource != null && 
-                                      _selectedEntry!.widgetSource.isNotEmpty) ...[
+                                  if (_selectedEntry!.widgetSource != null &&
+                                      _selectedEntry!
+                                          .widgetSource!.isNotEmpty) ...[
                                     const SizedBox(height: 8),
                                     Text(
                                       'Source: ${_selectedEntry!.widgetSource}',
@@ -168,29 +177,7 @@ class _PostDebugDialogState extends State<PostDebugDialog> {
                                   ],
                                   const SizedBox(height: 16),
                                   const Text(
-                                    'PowerShell Command:',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(8),
-                                    margin: const EdgeInsets.only(bottom: 16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: SelectableText(
-                                      _selectedEntry!.command,
-                                      style: const TextStyle(
-                                        fontFamily: 'Courier New',
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                  const Text(
-                                    'PowerShell Response:',
+                                    'Response:',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -211,7 +198,7 @@ class _PostDebugDialogState extends State<PostDebugDialog> {
                                       ),
                                     ),
                                   ),
-                                  if (_selectedEntry!.stderr.isNotEmpty) ...[
+                                  if (_selectedEntry!.error.isNotEmpty) ...[
                                     const Text(
                                       'Errors:',
                                       style: TextStyle(
@@ -225,10 +212,11 @@ class _PostDebugDialogState extends State<PostDebugDialog> {
                                       decoration: BoxDecoration(
                                         color: Colors.pink[50],
                                         borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: Colors.red[300]!),
+                                        border:
+                                            Border.all(color: Colors.red[300]!),
                                       ),
                                       child: SelectableText(
-                                        _selectedEntry!.stderr,
+                                        _selectedEntry!.error,
                                         style: const TextStyle(
                                           fontFamily: 'Courier New',
                                           fontSize: 12,
@@ -271,4 +259,4 @@ class _PostDebugDialogState extends State<PostDebugDialog> {
       ),
     );
   }
-} 
+}
