@@ -15,7 +15,6 @@ import 'dart:convert';
 import '../main.dart' show displayLabel;
 import '../services/post_debug_service.dart';
 import '../widgets/post_debug_dialog.dart';
-import '../widgets/directory_picker_dialog.dart';
 import '../services/well_api_service.dart';
 
 // Define intents at file level
@@ -66,10 +65,8 @@ class _CommandInterfaceState extends State<CommandInterface>
     with TickerProviderStateMixin {
   final TextEditingController _commandController = TextEditingController();
   final TextEditingController _outputController = TextEditingController();
-  final TextEditingController _directoryController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
-  static const String _directorySaveKey = 'last_directory';
   static const String _commandSaveKey = 'last_command';
 
   late TabController _tabController;
@@ -101,7 +98,6 @@ class _CommandInterfaceState extends State<CommandInterface>
   void initState() {
     super.initState();
     _createTabController();
-    _loadSavedDirectory();
     _loadSavedCommand();
     _checkCredentials();
   }
@@ -111,25 +107,6 @@ class _CommandInterfaceState extends State<CommandInterface>
       length: 4, // Changed to 4 tabs
       vsync: this,
     );
-  }
-
-  Future<void> _loadSavedDirectory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedDirectory = prefs.getString(_directorySaveKey);
-    if (savedDirectory != null) {
-      final directory = Directory(savedDirectory);
-      if (await directory.exists()) {
-        setState(() {
-          _directoryController.text = savedDirectory;
-        });
-        await _loadConfsFromFile();
-      }
-    }
-  }
-
-  Future<void> _saveDirectory() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_directorySaveKey, _directoryController.text.trim());
   }
 
   Future<void> _loadSavedCommand() async {
@@ -234,12 +211,15 @@ class _CommandInterfaceState extends State<CommandInterface>
           if (response['error'].isNotEmpty) {
             _outputController.text += '\nErrors:\n${response['error']}';
           }
+
+          // Switch to conferences tab after successful response
+          _tabController.animateTo(0); // Index 0 is the conferences tab
+
+          // Save the command
+          _saveCommand();
         } else {
           _outputController.text += '\nError: ${response['error']}';
         }
-
-        // Save the command
-        _saveCommand();
       });
     } catch (e) {
       setState(() {
@@ -415,49 +395,12 @@ class _CommandInterfaceState extends State<CommandInterface>
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Directory picker row
-              Row(
-                children: [
-                  const Text(
-                    'Directory: ',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  Expanded(
-                    child: Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 8.0),
-                              child: Text(
-                                _directoryController.text.isEmpty
-                                    ? 'No directory selected'
-                                    : _directoryController.text,
-                                overflow: TextOverflow.ellipsis,
-                                style: _directoryController.text.isEmpty
-                                    ? TextStyle(
-                                        color: Colors.grey[600], fontSize: 14)
-                                    : const TextStyle(fontSize: 14),
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.folder_open),
-                            onPressed: () {
-                              _selectDirectory();
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+              // Add Get Conf List button
+              Center(
+                child: ElevatedButton(
+                  onPressed: _getConfList,
+                  child: const Text('Get Conf List'),
+                ),
               ),
               const SizedBox(height: 8),
               // Command input row
@@ -598,7 +541,6 @@ class _CommandInterfaceState extends State<CommandInterface>
                                 )
                               : TopicPostWidget(
                                   topic: _selectedTopic!,
-                                  directory: _directoryController.text.trim(),
                                   credentialsManager: _credentialsManager,
                                   onForgetPressed: () {
                                     setState(() {
@@ -808,7 +750,6 @@ class _CommandInterfaceState extends State<CommandInterface>
     // Dispose controllers
     _commandController.dispose();
     _outputController.dispose();
-    _directoryController.dispose();
     _focusNode.dispose();
     _tabController.dispose();
 
@@ -835,24 +776,9 @@ class _CommandInterfaceState extends State<CommandInterface>
     super.dispose();
   }
 
-  Future<void> _saveConfsToFile(List<Conf> confs) async {
-    try {
-      final dir = _directoryController.text.trim();
-      if (dir.isEmpty) return;
-
-      final file = File('$dir/well_confs.json');
-      final jsonList = confs.map((conf) => conf.toJson()).toList();
-      await file.writeAsString(jsonEncode(jsonList));
-
-      _outputController.text += '\nSaved conference data to well_confs.json';
-    } catch (e) {
-      _outputController.text += '\nError saving conference data: $e';
-    }
-  }
-
   Future<void> _loadConfsFromFile() async {
     try {
-      final dir = _directoryController.text.trim();
+      final dir = '';
       if (dir.isEmpty) {
         _outputController.text += '\nDirectory is empty, cannot load confs';
         return;
@@ -1005,28 +931,6 @@ class _CommandInterfaceState extends State<CommandInterface>
     );
   }
 
-  void _selectDirectory() async {
-    final String? selectedPath = await showDialog<String>(
-      context: context,
-      builder: (context) => DirectoryPickerDialog(
-        initialDirectory: _directoryController.text,
-      ),
-    );
-
-    if (selectedPath != null && selectedPath.isNotEmpty) {
-      setState(() {
-        _directoryController.text = selectedPath;
-        _outputController.text += '\nDirectory changed to: $selectedPath\n';
-
-        // Save the directory
-        _saveDirectory();
-
-        // Try to load confs from the new directory
-        _loadConfsFromFile();
-      });
-    }
-  }
-
   void _processCommandResponse(dynamic jsonData) {
     try {
       if (jsonData is String) {
@@ -1129,5 +1033,70 @@ class _CommandInterfaceState extends State<CommandInterface>
         );
       });
     });
+  }
+
+  // Add this method to handle the Get Conf List button press
+  Future<void> _getConfList() async {
+    try {
+      final username = await _credentialsManager.getUsername();
+      final password = await _credentialsManager.getPassword();
+
+      if (username == null || password == null) {
+        throw Exception('Username or password not found');
+      }
+
+      // Ensure we have a connection
+      if (!_apiService.isConnected) {
+        final connectResult = await _apiService.connect(username, password);
+        if (!connectResult['success']) {
+          throw Exception('Failed to connect: ${connectResult['error']}');
+        }
+      }
+
+      // Get the conference list
+      final response = await _apiService.processCommand({
+        'conflist': true, // This tells the server to return the full conf list
+      });
+
+      setState(() {
+        if (response['success']) {
+          _outputController.text += '\n> Get Conference List\n';
+
+          // Handle the conference list
+          if (response['conflist'] != null && response['conflist'].isNotEmpty) {
+            _outputController.text += '\nAvailable conferences:\n';
+            for (final conf in response['conflist']) {
+              _outputController.text += '- $conf\n';
+            }
+          }
+
+          // Handle any additional output
+          if (response['response'].isNotEmpty) {
+            try {
+              final jsonData = response['response'];
+              _processCommandResponse(jsonData);
+            } catch (e) {
+              _outputController.text += '\nError processing response: $e\n';
+              _outputController.text +=
+                  '\nRaw Response:\n${response['response']}\n';
+            }
+          }
+
+          // Show any errors
+          if (response['error'].isNotEmpty) {
+            _outputController.text += '\nErrors:\n${response['error']}';
+          }
+
+          // Switch to conferences tab after successful response
+          _tabController.animateTo(0); // Index 0 is the conferences tab
+        } else {
+          _outputController.text += '\nError: ${response['error']}';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _outputController.text += '\nError: $e';
+      });
+    }
   }
 }

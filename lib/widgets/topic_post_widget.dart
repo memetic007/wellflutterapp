@@ -13,13 +13,11 @@ import '../services/well_api_service.dart';
 class TopicPostWidget extends StatefulWidget {
   final Topic topic;
   final VoidCallback? onForgetPressed;
-  final String directory;
   final CredentialsManager credentialsManager;
 
   const TopicPostWidget({
     super.key,
     required this.topic,
-    required this.directory,
     required this.credentialsManager,
     this.onForgetPressed,
   });

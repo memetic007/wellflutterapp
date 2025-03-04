@@ -53,6 +53,7 @@ class WellApiService {
         },
         body: jsonEncode({
           'command': data['command'],
+          'conflist': data['conflist'] ?? false,
         }),
       );
 
