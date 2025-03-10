@@ -12,6 +12,7 @@ import '../models/post_debug_entry.dart';
 import '../services/post_debug_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/well_api_service.dart';
+import 'reply_dialog.dart';
 
 class TopicPostsContainer extends StatefulWidget {
   final List<Topic> topics;
@@ -303,117 +304,14 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
   }
 
   void _showReplyDialog(BuildContext parentContext, Topic topic) {
-    final TextEditingController _replyController = TextEditingController();
-    final TextEditingController _outputController = TextEditingController();
-
     showDialog(
       context: parentContext,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Reply to ${topic.handle}'),
-        content: SizedBox(
-          width: 640,
-          height: 400,
-          child: TextEditorWithNav(
-            controller: _replyController,
-            autofocus: true,
-            style: const TextStyle(
-              fontFamily: 'Courier New',
-              fontSize: 14,
-            ),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: 'Type your reply here...',
-              contentPadding: EdgeInsets.all(12),
-            ),
-            maxLines: null,
-            expands: true,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                final replyText = _replyController.text;
-
-                // Ensure we have a connection first
-                if (!_apiService.isConnected) {
-                  final username =
-                      await widget.credentialsManager.getUsername();
-                  final password =
-                      await widget.credentialsManager.getPassword();
-
-                  if (username == null || password == null) {
-                    throw Exception('Username or password not found');
-                  }
-
-                  final connectResult =
-                      await _apiService.connect(username, password);
-                  if (!connectResult['success']) {
-                    throw Exception(
-                        'Failed to connect: ${connectResult['error']}');
-                  }
-                }
-
-                // Send the reply using postReply instead of processText
-                final result = await _apiService.postReply(
-                  content: replyText,
-                  conference: 'test', // Use test conference for now
-                  topic: '2264', // Use test topic for now
-                );
-
-                // Add debug output
-                _outputController.text += 'Widget: TopicPostsContainer\n';
-                _outputController.text += '\nSending reply to: test.2264\n';
-
-                if (result['output'].isNotEmpty) {
-                  _outputController.text +=
-                      '\nResponse:\n${result['output']}\n';
-                }
-
-                // Record debug information
-                final debugEntry = PostDebugEntry(
-                  timestamp: DateTime.now(),
-                  originalText: replyText,
-                  success: result['success'] ?? false,
-                  response: result['output'] ?? '',
-                  error: result['error'] ?? '',
-                );
-                PostDebugService().addDebugEntry(
-                    debugEntry); // Just store the entry, don't make HTTP request
-
-                // Show result
-                if (result['success']) {
-                  Navigator.of(dialogContext).pop();
-                  ScaffoldMessenger.of(parentContext).showSnackBar(
-                    SnackBar(
-                      content: const Text('Reply sent successfully'),
-                      behavior: SnackBarBehavior.floating,
-                      width: MediaQuery.of(parentContext).size.width * 0.3,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                } else {
-                  throw Exception(result['error']);
-                }
-              } catch (e) {
-                ScaffoldMessenger.of(parentContext).showSnackBar(
-                  SnackBar(
-                    content: Text('Error sending reply: $e'),
-                    behavior: SnackBarBehavior.floating,
-                    width: MediaQuery.of(parentContext).size.width * 0.3,
-                    duration: const Duration(seconds: 2),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: const Text('Submit'),
-          ),
-        ],
+      builder: (dialogContext) => ReplyDialog(
+        title: 'Reply to ${topic.handle}',
+        conference: 'test', // Use test conference for now
+        topicNumber: '2264', // Use test topic for now
+        credentialsManager: widget.credentialsManager,
+        showOutputField: false, // Match original implementation
       ),
     );
   }

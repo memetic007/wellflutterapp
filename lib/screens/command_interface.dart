@@ -301,37 +301,58 @@ class _CommandInterfaceState extends State<CommandInterface>
             '$displayLabel [${branch}] [Built: ${DateTime.now().toString().substring(0, 16)}]'),
         actions: [
           if (_currentUsername != null)
-            PopupMenuButton<String>(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  _currentUsername!,
-                  style: const TextStyle(
-                    decoration: TextDecoration.underline,
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                PopupMenuButton<String>(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text(
+                      _currentUsername!,
+                      style: const TextStyle(
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
                   ),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _showLoginDialog();
+                    } else if (value == 'debug') {
+                      _showDebugDialog(context);
+                    } else if (value == 'post_debug') {
+                      _showPostDebugDialog(context);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit Username/Password'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'debug',
+                      child: Text('Debug View'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'post_debug',
+                      child: Text('Post Debug'),
+                    ),
+                  ],
                 ),
-              ),
-              onSelected: (value) {
-                if (value == 'edit') {
-                  _showLoginDialog();
-                } else if (value == 'debug') {
-                  _showDebugDialog(context);
-                } else if (value == 'post_debug') {
-                  _showPostDebugDialog(context);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Text('Edit Username/Password'),
-                ),
-                const PopupMenuItem(
-                  value: 'debug',
-                  child: Text('Debug View'),
-                ),
-                const PopupMenuItem(
-                  value: 'post_debug',
-                  child: Text('Post Debug'),
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0, bottom: 4.0),
+                  child: TextButton.icon(
+                    onPressed: _handleConnect,
+                    icon: const Icon(Icons.power, size: 16),
+                    label: const Text('Connect'),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      minimumSize: const Size(0, 24),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -725,23 +746,42 @@ class _CommandInterfaceState extends State<CommandInterface>
   }
 
   Widget _buildDebugView() {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(
-        minHeight: 400.0,
-      ),
-      child: TextField(
-        controller: _outputController,
-        maxLines: null,
-        readOnly: true,
-        expands: true,
-        decoration: const InputDecoration(
-          border: OutlineInputBorder(),
-          filled: true,
-          fillColor: Color(0xFFF5F5F5),
-          contentPadding: EdgeInsets.all(8),
-          isCollapsed: true,
+    return Column(
+      children: [
+        // Add clear button row at the top
+        Container(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () {
+                  _outputController.clear();
+                  setState(() {}); // Trigger rebuild after clearing
+                },
+                icon: const Icon(Icons.clear_all),
+                label: const Text('Clear Debug Output'),
+              ),
+            ],
+          ),
         ),
-      ),
+        // Existing debug text field
+        Expanded(
+          child: TextField(
+            controller: _outputController,
+            maxLines: null,
+            readOnly: true,
+            expands: true,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              filled: true,
+              fillColor: Color(0xFFF5F5F5),
+              contentPadding: EdgeInsets.all(8),
+              isCollapsed: true,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -888,7 +928,7 @@ class _CommandInterfaceState extends State<CommandInterface>
   void _showDebugDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
+      builder: (dialogContext) => Dialog(
         child: Container(
           width: MediaQuery.of(context).size.width * 0.8,
           height: MediaQuery.of(context).size.height * 0.8,
@@ -905,9 +945,24 @@ class _CommandInterfaceState extends State<CommandInterface>
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          _outputController.clear();
+                          setState(() {}); // Trigger rebuild after clearing
+                          Navigator.of(dialogContext)
+                              .pop(); // Close dialog after clearing
+                        },
+                        icon: const Icon(Icons.clear_all),
+                        label: const Text('Clear'),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -944,11 +999,17 @@ class _CommandInterfaceState extends State<CommandInterface>
       // Process conferences and topics
       if (jsonData is List) {
         final List<Conf> confs = [];
+        int emptyConfs = 0;
 
         for (var confData in jsonData) {
           try {
             final conf = Conf.fromJson(confData);
             confs.add(conf);
+            if (conf.topics.isEmpty) {
+              emptyConfs++;
+              _outputController.text +=
+                  '\nConference "${conf.name}" has no topics';
+            }
           } catch (e) {
             _outputController.text += '\nError processing conference: $e';
           }
@@ -965,15 +1026,21 @@ class _CommandInterfaceState extends State<CommandInterface>
           _allTopics = allTopics;
           _currentTopics = allTopics;
 
+          _outputController.text += '\nLoaded ${confs.length} conferences:';
           _outputController.text +=
-              '\nLoaded ${confs.length} conferences with ${allTopics.length} total topics';
+              '\n - ${confs.length - emptyConfs} conferences with topics';
+          _outputController.text += '\n - $emptyConfs empty conferences';
+          _outputController.text += '\n - ${allTopics.length} total topics';
 
-          // Force the container to show the first topic
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_topicPostsContainerKey.currentState != null) {
-              _topicPostsContainerKey.currentState!.resetToStart();
-            }
-          });
+          // Only reset to first topic if we have any
+          if (allTopics.isNotEmpty) {
+            // Force the container to show the first topic
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (_topicPostsContainerKey.currentState != null) {
+                _topicPostsContainerKey.currentState!.resetToStart();
+              }
+            });
+          }
         });
       } else {
         throw Exception('Invalid JSON format: expected array of conferences');
@@ -1097,6 +1164,86 @@ class _CommandInterfaceState extends State<CommandInterface>
       setState(() {
         _outputController.text += '\nError: $e';
       });
+    }
+  }
+
+  Future<void> _handleConnect() async {
+    try {
+      final username = await _credentialsManager.getUsername();
+      final password = await _credentialsManager.getPassword();
+
+      if (username == null || password == null) {
+        throw Exception('Username or password not found');
+      }
+
+      setState(() {
+        _outputController.text += '\n> Connecting as $username...';
+      });
+
+      final connectResult = await _apiService.connect(username, password);
+
+      setState(() {
+        if (connectResult['success']) {
+          _outputController.text += '\nConnection successful!';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  const Text('Connected successfully'),
+                ],
+              ),
+              behavior: SnackBarBehavior.floating,
+              width: MediaQuery.of(context).size.width * 0.3,
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        } else {
+          _outputController.text +=
+              '\nConnection failed: ${connectResult['error']}';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Connection failed: ${connectResult['error']}'),
+                  ),
+                ],
+              ),
+              behavior: SnackBarBehavior.floating,
+              width: MediaQuery.of(context).size.width * 0.3,
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _outputController.text += '\nError: $e';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Error: $e')),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          width: MediaQuery.of(context).size.width * 0.3,
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 }

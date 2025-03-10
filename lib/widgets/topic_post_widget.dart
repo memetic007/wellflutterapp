@@ -9,6 +9,7 @@ import '../services/post_debug_service.dart';
 import '../models/post_debug_entry.dart';
 import 'dart:convert';
 import '../services/well_api_service.dart';
+import 'reply_dialog.dart';
 
 class TopicPostWidget extends StatefulWidget {
   final Topic topic;
@@ -218,143 +219,14 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
   }
 
   void _showReplyDialog(BuildContext parentContext) {
-    final TextEditingController _replyController = TextEditingController();
-    final TextEditingController _outputController = TextEditingController();
-
     showDialog(
       context: parentContext,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Reply to ${widget.topic.handle}'),
-        content: SizedBox(
-          width: 640,
-          child: Column(
-            children: [
-              Expanded(
-                child: TextEditorWithNav(
-                  controller: _replyController,
-                  autofocus: true,
-                  style: const TextStyle(
-                    fontFamily: 'Courier New',
-                    fontSize: 14,
-                  ),
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Type your reply here...',
-                    contentPadding: EdgeInsets.all(12),
-                  ),
-                  maxLines: null,
-                  expands: true,
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 100,
-                child: TextField(
-                  controller: _outputController,
-                  maxLines: null,
-                  readOnly: true,
-                  style: const TextStyle(
-                    fontFamily: 'Courier New',
-                    fontSize: 12,
-                  ),
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Command output...',
-                    contentPadding: EdgeInsets.all(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                // Clear the debug output first
-                _outputController.clear();
-
-                final replyText = _replyController.text;
-
-                // Ensure we have a connection first
-                if (!_apiService.isConnected) {
-                  final username =
-                      await widget.credentialsManager.getUsername();
-                  final password =
-                      await widget.credentialsManager.getPassword();
-
-                  if (username == null || password == null) {
-                    throw Exception('Username or password not found');
-                  }
-
-                  final connectResult =
-                      await _apiService.connect(username, password);
-                  if (!connectResult['success']) {
-                    throw Exception(
-                        'Failed to connect: ${connectResult['error']}');
-                  }
-                }
-
-                // Send the reply
-                final result = await _apiService.postReply(
-                  content: replyText,
-                  conference: widget.topic.conf,
-                  topic: widget.topic.number.toString(),
-                );
-
-                // Add debug output
-                _outputController.text += 'Widget: TopicPostWidget\n';
-                _outputController.text +=
-                    '\nSending reply to: ${widget.topic.conf}.${widget.topic.number}\n';
-
-                if (result['output'].isNotEmpty) {
-                  _outputController.text +=
-                      '\nResponse:\n${result['output']}\n';
-                }
-
-                // Record debug information
-                final debugEntry = PostDebugEntry(
-                  timestamp: DateTime.now(),
-                  originalText: replyText,
-                  success: result['success'] ?? false,
-                  response: result['output'] ?? '',
-                  error: result['error'] ?? '',
-                );
-                PostDebugService().addDebugEntry(debugEntry);
-
-                // Show result
-                if (result['success']) {
-                  Navigator.of(dialogContext).pop();
-                  ScaffoldMessenger.of(parentContext).showSnackBar(
-                    SnackBar(
-                      content: const Text('Reply sent successfully'),
-                      behavior: SnackBarBehavior.floating,
-                      width: MediaQuery.of(parentContext).size.width * 0.3,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                } else {
-                  throw Exception(result['error']);
-                }
-              } catch (e) {
-                ScaffoldMessenger.of(parentContext).showSnackBar(
-                  SnackBar(
-                    content: Text('Error sending reply: $e'),
-                    behavior: SnackBarBehavior.floating,
-                    width: MediaQuery.of(parentContext).size.width * 0.3,
-                    duration: const Duration(seconds: 2),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: const Text('Submit'),
-          ),
-        ],
+      builder: (dialogContext) => ReplyDialog(
+        title: 'Reply to ${widget.topic.handle}',
+        conference: widget.topic.conf,
+        topicNumber: widget.topic.number.toString(),
+        credentialsManager: widget.credentialsManager,
+        showOutputField: false,
       ),
     );
   }
