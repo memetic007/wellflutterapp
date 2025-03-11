@@ -47,10 +47,7 @@ class WellApiService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/extractconfcontent'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (_sessionId != null) 'X-Session-ID': _sessionId!,
-        },
+        headers: _getHeaders(),
         body: jsonEncode({
           'command': data['command'],
           'conflist': data['conflist'] ?? false,
@@ -142,14 +139,11 @@ class WellApiService {
 
       final response = await http.post(
         Uri.parse('$baseUrl/postreply'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-ID': _sessionId!,
-        },
+        headers: _getHeaders(),
         body: jsonEncode({
           'base64_content': base64Content,
-          'conference': 'test', // Keep test values for now
-          'topic': '2264', // Keep test values for now
+          'conference': conference,
+          'topic': topic,
         }),
       );
 
@@ -161,9 +155,7 @@ class WellApiService {
         final responseData = jsonDecode(response.body);
         return {
           'success': true,
-          'output': responseData['output'] ??
-              responseData['response'] ??
-              '', // Handle both output formats
+          'output': responseData['output'] ?? responseData['response'] ?? '',
           'error': '',
         };
       } else if (response.statusCode == 401) {
@@ -181,12 +173,76 @@ class WellApiService {
         };
       }
     } catch (e) {
-      print('Error in postReply: $e'); // Log any errors
+      print('Error in postReply: $e');
       return {
         'success': false,
         'output': '',
         'error': e.toString(),
       };
     }
+  }
+
+  Future<Map<String, dynamic>> getCfList() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/cflist'),
+        headers: _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'cflist': data['cflist'],
+        };
+      } else {
+        return {
+          'success': false,
+          'error': jsonDecode(response.body)['error'] ?? 'Unknown error',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> putCfList(List<String> cflist) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/put_cflist'),
+        headers: _getHeaders(),
+        body: jsonEncode({
+          'cflist': cflist,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Successfully updated conference list',
+        };
+      } else {
+        return {
+          'success': false,
+          'error': jsonDecode(response.body)['error'] ?? 'Unknown error',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  Map<String, String> _getHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      if (_sessionId != null) 'X-Session-ID': _sessionId!,
+    };
   }
 }

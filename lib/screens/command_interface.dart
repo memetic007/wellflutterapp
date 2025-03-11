@@ -418,9 +418,19 @@ class _CommandInterfaceState extends State<CommandInterface>
             children: [
               // Add Get Conf List button
               Center(
-                child: ElevatedButton(
-                  onPressed: _getConfList,
-                  child: const Text('Get Conf List'),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _getConfList,
+                      child: const Text('Get Conf List'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _showEditConfListDialog,
+                      child: const Text('Edit Conf List'),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),
@@ -1242,6 +1252,165 @@ class _CommandInterfaceState extends State<CommandInterface>
           width: MediaQuery.of(context).size.width * 0.3,
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _showEditConfListDialog() async {
+    final TextEditingController confListController = TextEditingController();
+
+    try {
+      if (!_apiService.isConnected) {
+        final username = await _credentialsManager.getUsername();
+        final password = await _credentialsManager.getPassword();
+
+        if (username == null || password == null) {
+          throw Exception('Username or password not found');
+        }
+
+        final connectResult = await _apiService.connect(username, password);
+        if (!connectResult['success']) {
+          throw Exception('Failed to connect: ${connectResult['error']}');
+        }
+      }
+
+      final response = await _apiService.getCfList();
+
+      if (response['success'] && response['cflist'] != null) {
+        final nonEmptyLines = (response['cflist'] as List)
+            .map((line) => line.toString().trim())
+            .where((line) => line.isNotEmpty)
+            .toList();
+        confListController.text = nonEmptyLines.join('\n');
+      } else {
+        throw Exception(response['error'] ?? 'Failed to get conference list');
+      }
+
+      await showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          child: Container(
+            width: 500,
+            height: 600,
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Edit Conference List',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: TextField(
+                    controller: confListController,
+                    maxLines: null,
+                    expands: true,
+                    textAlignVertical: TextAlignVertical.top,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: 'Enter conferences, one per line...',
+                      contentPadding: EdgeInsets.all(8),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          // Get the list of conferences from the text field
+                          final confList = confListController.text
+                              .split('\n')
+                              .map((line) => line.trim())
+                              .where((line) => line.isNotEmpty)
+                              .toList();
+
+                          _outputController.text +=
+                              '\n> Saving conference list...';
+                          _outputController.text += '\nConferences to save:';
+                          for (var conf in confList) {
+                            _outputController.text += '\n  - $conf';
+                          }
+
+                          // Send the list to the server
+                          final result = await _apiService.putCfList(confList);
+
+                          if (result['success']) {
+                            _outputController.text +=
+                                '\nSave successful: ${result['message']}';
+                            // Show success dialog
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Save'),
+                                content: const Text('saved pressed'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context)
+                                          .pop(); // Close message dialog
+                                      Navigator.of(context)
+                                          .pop(); // Close edit dialog
+                                    },
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          } else {
+                            _outputController.text +=
+                                '\nSave failed: ${result['error']}';
+                            throw Exception(result['error']);
+                          }
+                        } catch (e) {
+                          _outputController.text +=
+                              '\nError saving conference list: $e';
+                          if (e is TypeError) {
+                            _outputController.text += '\nType Error Details:';
+                            _outputController.text +=
+                                '\n  toString: ${e.toString()}';
+                            _outputController.text +=
+                                '\n  stackTrace: ${e.stackTrace}';
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error saving conference list: $e'),
+                              behavior: SnackBarBehavior.floating,
+                              width: MediaQuery.of(context).size.width * 0.3,
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          behavior: SnackBarBehavior.floating,
+          width: MediaQuery.of(context).size.width * 0.3,
+          backgroundColor: Colors.red,
         ),
       );
     }

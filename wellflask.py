@@ -4,12 +4,13 @@ import base64
 import re
 import extract2json
 import makeobjects2json
+import sys
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '397397397'  # for session cookies
 
-# Hardcoded host value
-HARDCODED_HOST = "well.com"
+# Check command line arguments for -welltest flag
+HARDCODED_HOST = "user.dev.well.com" if "-welltest" in sys.argv else "well.com"
 
 # In-memory cache for active SSH sessions
 sessions = {}  # { session_id: { 'ssh': SSHClient, 'creds': {host, user, pwd}, 'last_active': time.time() } }
@@ -157,7 +158,7 @@ def extractconfcontent():
     else:
         #conflist is true
         for attempt in range(2):
-            success, result = execute_ssh_command(sess_id, 'cat .cfdir/.cflist')
+            success, result = execute_ssh_command(sess_id, 'cat .cfdir/.wscflist')
             if success:
                 exit_status, conflist_out, conflist_err = result
                 if exit_status == 0:
@@ -169,7 +170,7 @@ def extractconfcontent():
             return jsonify({'error': 'Failed to retrieve conference list'}), 500
 
         # Change from spaces to commas with no spaces
-        cmd = 'extract -s -1 ' + ','.join(conflist)
+        cmd = 'extract -np ' + ','.join(conflist)
 
     print("command provided to extractconfcontent: " + cmd)
 
@@ -185,7 +186,12 @@ def extractconfcontent():
     out = extract2json.processrawextract(out)
     
     # convert the line by line JSON to a single JSON object
-    out = makeobjects2json.makeObjects(out)
+    
+    if include_conflist:
+        out = makeobjects2json.makeObjects(out,conflist)
+    else:
+        conflist = []
+        out = makeobjects2json.makeObjects(out,conflist)
 
     # Build response
     response = {
@@ -234,7 +240,7 @@ def get_cflist():
     sess_id = session.get('session_id') or request.headers.get('X-Session-ID')
     
     # Execute command using helper function
-    success, result = execute_ssh_command(sess_id, 'cat .cfdir/.cflist')
+    success, result = execute_ssh_command(sess_id, 'cat .cfdir/.wscflist')                                     
     
     if not success:
         return jsonify({'error': result}), 401
@@ -252,82 +258,49 @@ def get_cflist():
     return jsonify({'cflist': cflist}), 200
 
 def execute_post_reply(ssh_client, decoded_lines, conf, topic, debug_mode=False):
-    """
-    Execute post reply using interactive shell
-    
-    Args:
-        ssh_client: Paramiko SSH client
-        decoded_lines: List of lines to post
-        conf: Conference name
-        topic: Topic number
-        debug_mode: Enable debug output
-        
-    Returns:
-        tuple: (success, result)
-            - If success is True, result contains output buffer
-            - If success is False, result contains error message
-    """
     try:
-        # Open channel for interactive shell
-        channel = ssh_client.invoke_shell()
+        # new simpler approach
+        command = f"post -n {conf} {topic}\n"
+        stdin, stdout, stderr = ssh_client.exec_command(command, get_pty=True)
+
+        # Write multiple lines to stdin
+        for line in decoded_lines:
+            stdin.write(line + "\n")
+        stdin.write(".\n")
+        # Ensure all data is sent
+        stdin.flush()
+
+        # Close the stdin channel
+        stdin.close()   
+
+        # Read output and handle bad characters with replacement
+        output = stdout.read().decode("utf-8", errors='replace')
+        error_output = stderr.read().decode("utf-8", errors='replace')
+
+        # Check for common error patterns
+        error_patterns = [
+            "error", "invalid", "failed", "denied", "not found",
+            "cannot", "unauthorized", "permission denied"
+        ]
         
-        # Buffer for received data
-        output_buffer = ""
-        
-        # Flag to track if we've seen the "ok (" pattern
-        ok_pattern_seen = False
-        
-        # Wait for initial response
-        while True:
-            if channel.recv_ready():
-                data = channel.recv(4096).decode("utf-8", errors="replace")
-                output_buffer += data
-                
-                if debug_mode:
-                    print(data, end="", flush=True)
-                
-                # Check for "ok (" pattern (case insensitive)
-                if not ok_pattern_seen and re.search(r"ok \(", data, re.IGNORECASE):
-                    ok_pattern_seen = True
-                    
-                    # Wait 300ms
-                    time.sleep(0.3)
-                    
-                    # Send "post conf topic" with newline
-                    channel.send(f"!post -n {conf} {topic}\n")
-                    
-                    # Wait 300ms
-                    time.sleep(0.3)
-                    
-                    # Send each line with newline, wait 50ms after each
-                    for line in decoded_lines:
-                        channel.send(f"{line}\n")
-                        time.sleep(0.05)
-                    
-                    # Send single dot with newline
-                    channel.send(".\n")
-                    
-                    # Wait 100ms to collect final output
-                    time.sleep(0.1)
-                    break
+        # Check stderr first
+        if error_output:
+            return False, f"Command error: {error_output}"
             
-            # Prevent CPU hogging
-            time.sleep(0.1)
-        
-        # Collect any remaining output
-        time.sleep(0.1)
-        while channel.recv_ready():
-            data = channel.recv(4096).decode("utf-8", errors="replace")
-            output_buffer += data
-            
-            if debug_mode:
-                print(data, end="", flush=True)
-                
-        channel.close()
-        return True, output_buffer
-        
+        # Check stdout for error patterns
+        output_lower = output.lower()
+        for pattern in error_patterns:
+            if pattern in output_lower:
+                return False, f"Operation failed: {output}"
+
+        # Check exit status
+        if stdout.channel.recv_exit_status() != 0:
+            return False, f"Command failed with non-zero exit status: {output}"
+
+        return True, output
+
     except Exception as e:
-        return False, f"Error in post reply: {str(e)}"
+        return False, f"Error executing post command: {str(e)}"
 
 @app.route('/postreply', methods=['POST'])
 def postreply():
@@ -402,6 +375,101 @@ def postreply():
     except Exception as e:
         return jsonify({
             'error': f'Failed to process post reply: {str(e)}'
+        }), 500
+
+def execute_put_cflist(ssh_client, cflist_lines):
+    try:
+        command = "cat > .cfdir/.wscflist"
+        stdin, stdout, stderr = ssh_client.exec_command(command, get_pty=True)
+
+        # Write each line to stdin
+        for line in cflist_lines:
+            stdin.write(line + "\n")
+            
+        # Ensure all data is sent
+        stdin.flush()
+
+        # Close the stdin channel
+        stdin.close()
+
+        # Read output and handle bad characters with replacement
+        output = stdout.read().decode("utf-8", errors='replace')
+        error_output = stderr.read().decode("utf-8", errors='replace')
+
+        # Check stderr first
+        if error_output:
+            return False, f"Command error: {error_output}"
+
+        # Check exit status
+        if stdout.channel.recv_exit_status() != 0:
+            return False, f"Command failed with non-zero exit status: {output}"
+
+        return True, "Successfully updated .wscflist"
+
+    except Exception as e:
+        return False, f"Error executing put_cflist command: {str(e)}"
+
+@app.route('/put_cflist', methods=['POST'])
+def put_cflist():
+    # Get session ID
+    sess_id = session.get('session_id') or request.headers.get('X-Session-ID')
+    if not sess_id or sess_id not in sessions:
+        return jsonify({'error': 'No active session. Please connect first.'}), 401
+        
+    # Get request data
+    data = request.get_json()
+    if not data or 'cflist' not in data:
+        return jsonify({'error': 'Missing cflist parameter'}), 400
+        
+    cflist = data['cflist']
+    if not isinstance(cflist, list):
+        return jsonify({'error': 'cflist must be a list of strings'}), 400
+        
+    try:
+        # Get SSH client and try to update cflist
+        ssh_client = sessions[sess_id]['ssh']
+        success, result = execute_put_cflist(ssh_client, cflist)
+        
+        # If failed, try to reconnect and retry once
+        if not success:
+            try:
+                # Get stored credentials
+                creds = sessions[sess_id]['creds']
+                
+                # Close old connection
+                try:
+                    ssh_client.close()
+                except:
+                    pass
+                
+                # Create new connection
+                ssh_client = paramiko.SSHClient()
+                ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh_client.connect(**creds)
+                
+                # Store new connection
+                sessions[sess_id]['ssh'] = ssh_client
+                
+                # Try update again
+                success, result = execute_put_cflist(ssh_client, cflist)
+                
+            except Exception as e:
+                return jsonify({'error': f'Reconnection failed: {str(e)}'}), 500
+        
+        if not success:
+            return jsonify({'error': result}), 500
+            
+        # Update last active time
+        sessions[sess_id]['last_active'] = time.time()
+        
+        return jsonify({
+            'success': True,
+            'message': result
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'error': f'Failed to process put_cflist: {str(e)}'
         }), 500
 
 # Add this after all your route definitions (just before if __name__ == '__main__':)
