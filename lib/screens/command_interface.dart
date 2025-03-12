@@ -16,6 +16,7 @@ import '../main.dart' show displayLabel;
 import '../services/post_debug_service.dart';
 import '../widgets/post_debug_dialog.dart';
 import '../services/well_api_service.dart';
+import '../widgets/text_editor_with_nav.dart';
 
 // Define intents at file level
 class NavigateLeftIntent extends Intent {
@@ -1306,11 +1307,15 @@ class _CommandInterfaceState extends State<CommandInterface>
                 ),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: TextField(
+                  child: TextEditorWithNav(
                     controller: confListController,
                     maxLines: null,
                     expands: true,
-                    textAlignVertical: TextAlignVertical.top,
+                    autofocus: true,
+                    style: const TextStyle(
+                      fontFamily: 'Courier New',
+                      fontSize: 14,
+                    ),
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'Enter conferences, one per line...',
