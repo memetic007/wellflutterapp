@@ -308,10 +308,10 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
       context: parentContext,
       builder: (dialogContext) => ReplyDialog(
         title: 'Reply to ${topic.handle}',
-        conference: 'test', // Use test conference for now
-        topicNumber: '2264', // Use test topic for now
+        conference: 'test', // Ensure we use 'test'
+        topicNumber: '2264', // Ensure we use '2264'
         credentialsManager: widget.credentialsManager,
-        showOutputField: false, // Match original implementation
+        showOutputField: false,
       ),
     );
   }

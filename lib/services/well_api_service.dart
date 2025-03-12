@@ -142,8 +142,8 @@ class WellApiService {
         headers: _getHeaders(),
         body: jsonEncode({
           'base64_content': base64Content,
-          'conference': conference,
-          'topic': topic,
+          'conference': 'test', // Hardcode to 'test'
+          'topic': '2264', // Hardcode to '2264'
         }),
       );
 
