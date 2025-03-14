@@ -113,13 +113,11 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
       autofocus: true,
       onKey: _handleKeyEvent,
       child: Center(
-        child: Column(
-          children: [
-            Expanded(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 800,
-                ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            children: [
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -191,16 +189,19 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                         child: SingleChildScrollView(
                           controller: _scrollController,
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              ...widget.topic.posts
-                                  .map((post) => PostWidget(post: post))
-                                  .toList(),
+                              ...widget.topic.posts.map((post) => PostWidget(
+                                    post: post,
+                                  )),
                               Padding(
                                 padding: const EdgeInsets.all(16.0),
-                                child: ElevatedButton.icon(
-                                  icon: const Icon(Icons.reply),
-                                  label: const Text('Reply'),
-                                  onPressed: () => _showReplyDialog(context),
+                                child: Center(
+                                  child: ElevatedButton.icon(
+                                    icon: const Icon(Icons.reply),
+                                    label: const Text('Reply'),
+                                    onPressed: () => _showReplyDialog(context),
+                                  ),
                                 ),
                               ),
                             ],
@@ -211,8 +212,8 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
