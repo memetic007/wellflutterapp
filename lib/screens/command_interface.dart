@@ -98,16 +98,25 @@ class _CommandInterfaceState extends State<CommandInterface>
   @override
   void initState() {
     super.initState();
-    _createTabController();
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+    );
     _loadSavedCommand();
     _checkCredentials();
   }
 
-  void _createTabController() {
-    _tabController = TabController(
-      length: 4, // Changed to 4 tabs
-      vsync: this,
-    );
+  @override
+  void didUpdateWidget(CommandInterface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Ensure TabController is updated on hot reload
+    if (_tabController.length != 3) {
+      _tabController.dispose();
+      _tabController = TabController(
+        length: 3,
+        vsync: this,
+      );
+    }
   }
 
   Future<void> _loadSavedCommand() async {
@@ -487,7 +496,6 @@ class _CommandInterfaceState extends State<CommandInterface>
                   const Tab(text: 'Conferences'),
                   Tab(text: _topicsMenuLabel),
                   Tab(text: _allTopicsLabel),
-                  const Tab(text: 'Debug'),
                 ],
               ),
               Expanded(
@@ -626,11 +634,6 @@ class _CommandInterfaceState extends State<CommandInterface>
                           padding: const EdgeInsets.all(8.0),
                           child: Row(
                             children: [
-                              ElevatedButton(
-                                onPressed: () => _showButtonPressed(
-                                    context, 'allPostsTabRefresh'),
-                                child: const Text('Refresh'),
-                              ),
                               if (_selectedConf != null) ...[
                                 const SizedBox(width: 8),
                                 ElevatedButton(
@@ -733,17 +736,16 @@ class _CommandInterfaceState extends State<CommandInterface>
                             onPrevious: _currentTopicIndex > 0
                                 ? _handlePreviousPressed
                                 : null,
-                            onNext: _currentTopicIndex < _allTopics.length - 1
-                                ? _handleNextPressed
-                                : null,
+                            onNext:
+                                _currentTopicIndex < _currentTopics.length - 1
+                                    ? _handleNextPressed
+                                    : null,
                             onForgetPressed: _handleForgetPressed,
                             credentialsManager: _credentialsManager,
                           ),
                         ),
                       ],
                     ),
-                    // Debug tab
-                    _buildDebugView(),
                   ],
                 ),
               ),
@@ -754,74 +756,22 @@ class _CommandInterfaceState extends State<CommandInterface>
     );
   }
 
-  Widget _buildDebugView() {
-    return Column(
-      children: [
-        // Add clear button row at the top
-        Container(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  _outputController.clear();
-                  setState(() {}); // Trigger rebuild after clearing
-                },
-                icon: const Icon(Icons.clear_all),
-                label: const Text('Clear Debug Output'),
-              ),
-            ],
-          ),
-        ),
-        // Existing debug text field
-        Expanded(
-          child: TextField(
-            controller: _outputController,
-            maxLines: null,
-            readOnly: true,
-            expands: true,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              filled: true,
-              fillColor: Color(0xFFF5F5F5),
-              contentPadding: EdgeInsets.all(8),
-              isCollapsed: true,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   void dispose() {
-    // Dispose controllers
+    _tabController.dispose();
     _commandController.dispose();
     _outputController.dispose();
     _focusNode.dispose();
-    _tabController.dispose();
 
     // Clear any stored state
     _currentTopics.clear();
     _currentConfs.clear();
     _allTopics.clear();
 
-    // Ensure the key is disposed
     if (_topicPostsContainerKey.currentState != null) {
       _topicPostsContainerKey.currentState!.dispose();
     }
 
-    // Force cleanup of any lingering processes
-    if (Platform.isWindows) {
-      try {
-        Process.runSync('taskkill', ['/F', '/IM', 'dart.exe']);
-      } catch (e) {
-        // Ignore errors if process not found
-      }
-    }
-
-    // Call parent dispose
     super.dispose();
   }
 
@@ -1070,7 +1020,7 @@ class _CommandInterfaceState extends State<CommandInterface>
 
   void _handleNextPressed() {
     setState(() {
-      if (_currentTopicIndex < _allTopics.length - 1) {
+      if (_currentTopicIndex < _currentTopics.length - 1) {
         _currentTopicIndex++;
       }
     });

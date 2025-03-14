@@ -134,7 +134,64 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Top topic bar
+                  Container(
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      border:
+                          Border(bottom: BorderSide(color: Colors.grey[400]!)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '[${topic.handle}] ',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: topic.title,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Forget'),
+                            Checkbox(
+                              value: _forgetStates[index] ?? false,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  _forgetStates[index] = value ?? false;
+                                });
+                                if (value == true &&
+                                    widget.onForgetPressed != null) {
+                                  widget.onForgetPressed!();
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Posts
                   ...topic.posts.map((post) => PostWidget(post: post)).toList(),
+                  // Bottom topic bar
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.grey[300],
@@ -184,6 +241,8 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                       ],
                     ),
                   ),
+                  // Add spacing between topics
+                  const SizedBox(height: 16.0),
                 ],
               );
             },
