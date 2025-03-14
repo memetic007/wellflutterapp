@@ -194,64 +194,69 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                               ...widget.topic.posts.map((post) => PostWidget(
                                     post: post,
                                   )),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors
-                                      .grey[300], // Slightly darker background
-                                  border: Border(
-                                    top: BorderSide(color: Colors.grey[400]!),
+                              Card(
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 8.0, horizontal: 12.0),
+                                elevation: 3,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                        0xFFF5F5F5), // Very light neutral grey, just slightly darker than Card
+                                    borderRadius: BorderRadius.circular(4.0),
                                   ),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 8.0),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    // Left: Topic Handle
-                                    Text(
-                                      widget.topic.handle,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                    // Center: Reply Button
-                                    ElevatedButton.icon(
-                                      icon: const Icon(Icons.reply),
-                                      label: const Text('Reply'),
-                                      onPressed: () =>
-                                          _showReplyDialog(context),
-                                    ),
-                                    // Right: Forget Checkbox
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Text('Forget'),
-                                        Checkbox(
-                                          value: _isForgetChecked,
-                                          onChanged: (bool? value) {
-                                            setState(() {
-                                              _isForgetChecked = value ?? false;
-                                            });
-                                            if (value == true &&
-                                                widget.onForgetPressed !=
-                                                    null) {
-                                              print('DEBUG - TopicPostWidget:');
-                                              print(
-                                                  '  - Topic title: "${widget.topic.title}"');
-                                              print(
-                                                  '  - Topic handle: "${widget.topic.handle}"');
-                                              print(
-                                                  '  - Full topic: ${widget.topic}');
-                                              widget.onForgetPressed!();
-                                            }
-                                          },
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0, vertical: 8.0),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      // Left: Topic Handle
+                                      Text(
+                                        widget.topic.handle,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue,
                                         ),
-                                      ],
-                                    ),
-                                  ],
+                                      ),
+                                      // Center: Reply Button
+                                      ElevatedButton.icon(
+                                        icon: const Icon(Icons.reply),
+                                        label: const Text('Reply'),
+                                        onPressed: () =>
+                                            _showReplyDialog(context),
+                                      ),
+                                      // Right: Forget Checkbox
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text('Forget'),
+                                          Checkbox(
+                                            value: _isForgetChecked,
+                                            onChanged: (bool? value) {
+                                              setState(() {
+                                                _isForgetChecked =
+                                                    value ?? false;
+                                              });
+                                              if (value == true &&
+                                                  widget.onForgetPressed !=
+                                                      null) {
+                                                print(
+                                                    'DEBUG - TopicPostWidget:');
+                                                print(
+                                                    '  - Topic title: "${widget.topic.title}"');
+                                                print(
+                                                    '  - Topic handle: "${widget.topic.handle}"');
+                                                print(
+                                                    '  - Full topic: ${widget.topic}');
+                                                widget.onForgetPressed!();
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],

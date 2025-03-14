@@ -192,53 +192,57 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                   // Posts
                   ...topic.posts.map((post) => PostWidget(post: post)).toList(),
                   // Bottom topic bar
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      border: Border(
-                        top: BorderSide(color: Colors.grey[400]!),
+                  Card(
+                    margin: const EdgeInsets.symmetric(
+                        vertical: 8.0, horizontal: 12.0),
+                    elevation: 3,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(
+                            0xFFF5F5F5), // Very light neutral grey, just slightly darker than Card
+                        borderRadius: BorderRadius.circular(4.0),
                       ),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Left: Topic Handle
-                        Text(
-                          topic.handle,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                        // Center: Reply Button
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.reply),
-                          label: const Text('Reply'),
-                          onPressed: () => _showReplyDialog(context, topic),
-                        ),
-                        // Right: Forget Checkbox
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('Forget'),
-                            Checkbox(
-                              value: _forgetStates[index] ?? false,
-                              onChanged: (bool? value) {
-                                setState(() {
-                                  _forgetStates[index] = value ?? false;
-                                });
-                                if (value == true &&
-                                    widget.onForgetPressed != null) {
-                                  widget.onForgetPressed!();
-                                }
-                              },
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 8.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Left: Topic Handle
+                          Text(
+                            topic.handle,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          // Center: Reply Button
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.reply),
+                            label: const Text('Reply'),
+                            onPressed: () => _showReplyDialog(context, topic),
+                          ),
+                          // Right: Forget Checkbox
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('Forget'),
+                              Checkbox(
+                                value: _forgetStates[index] ?? false,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    _forgetStates[index] = value ?? false;
+                                  });
+                                  if (value == true &&
+                                      widget.onForgetPressed != null) {
+                                    widget.onForgetPressed!();
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   // Add spacing between topics
