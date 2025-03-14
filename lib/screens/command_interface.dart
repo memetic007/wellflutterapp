@@ -530,36 +530,19 @@ class _CommandInterfaceState extends State<CommandInterface>
                         Container(
                           padding: const EdgeInsets.all(8.0),
                           child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              ElevatedButton(
-                                onPressed: () => _showButtonPressed(
-                                    context, 'topicsMenuTabRefresh'),
-                                child: const Text('Refresh'),
-                              ),
-                              const SizedBox(width: 8),
                               ElevatedButton(
                                 onPressed: () => _showButtonPressed(
                                     context, 'createNewTopicPressed'),
                                 child: const Text('New Topic'),
                               ),
                               if (_selectedConf != null) ...[
-                                const SizedBox(width: 8),
-                                ElevatedButton(
+                                const SizedBox(width: 16),
+                                ElevatedButton.icon(
                                   onPressed: () => _handleConfSelected(null),
-                                  child: const Text('All Confs'),
-                                ),
-                              ],
-                              const Spacer(), // Push To Topic Menu button to the right
-                              if (_selectedTopic != null) ...[
-                                // Only show when a topic is selected
-                                ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedTopic =
-                                          null; // Clear selected topic to return to menu
-                                    });
-                                  },
-                                  child: const Text('To Topic Menu'),
+                                  icon: const Icon(Icons.arrow_back),
+                                  label: const Text('All Confs'),
                                 ),
                               ],
                             ],
