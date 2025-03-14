@@ -194,14 +194,64 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                               ...widget.topic.posts.map((post) => PostWidget(
                                     post: post,
                                   )),
-                              Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Center(
-                                  child: ElevatedButton.icon(
-                                    icon: const Icon(Icons.reply),
-                                    label: const Text('Reply'),
-                                    onPressed: () => _showReplyDialog(context),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors
+                                      .grey[300], // Slightly darker background
+                                  border: Border(
+                                    top: BorderSide(color: Colors.grey[400]!),
                                   ),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0, vertical: 8.0),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // Left: Topic Handle
+                                    Text(
+                                      widget.topic.handle,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                    // Center: Reply Button
+                                    ElevatedButton.icon(
+                                      icon: const Icon(Icons.reply),
+                                      label: const Text('Reply'),
+                                      onPressed: () =>
+                                          _showReplyDialog(context),
+                                    ),
+                                    // Right: Forget Checkbox
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text('Forget'),
+                                        Checkbox(
+                                          value: _isForgetChecked,
+                                          onChanged: (bool? value) {
+                                            setState(() {
+                                              _isForgetChecked = value ?? false;
+                                            });
+                                            if (value == true &&
+                                                widget.onForgetPressed !=
+                                                    null) {
+                                              print('DEBUG - TopicPostWidget:');
+                                              print(
+                                                  '  - Topic title: "${widget.topic.title}"');
+                                              print(
+                                                  '  - Topic handle: "${widget.topic.handle}"');
+                                              print(
+                                                  '  - Full topic: ${widget.topic}');
+                                              widget.onForgetPressed!();
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],

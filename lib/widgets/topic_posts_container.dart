@@ -134,39 +134,35 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  ...topic.posts.map((post) => PostWidget(post: post)).toList(),
                   Container(
-                    padding: const EdgeInsets.all(8.0),
                     decoration: BoxDecoration(
                       color: Colors.grey[300],
-                      border:
-                          Border(bottom: BorderSide(color: Colors.grey[400]!)),
+                      border: Border(
+                        top: BorderSide(color: Colors.grey[400]!),
+                      ),
                     ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: '${topic.handle} - ',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: topic.title,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        // Left: Topic Handle
+                        Text(
+                          topic.handle,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
                           ),
                         ),
+                        // Center: Reply Button
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.reply),
+                          label: const Text('Reply'),
+                          onPressed: () => _showReplyDialog(context, topic),
+                        ),
+                        // Right: Forget Checkbox
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -186,15 +182,6 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                           ],
                         ),
                       ],
-                    ),
-                  ),
-                  ...topic.posts.map((post) => PostWidget(post: post)).toList(),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.reply),
-                      label: const Text('Reply'),
-                      onPressed: () => _showReplyDialog(context, topic),
                     ),
                   ),
                 ],
