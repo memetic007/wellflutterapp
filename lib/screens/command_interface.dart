@@ -307,8 +307,18 @@ class _CommandInterfaceState extends State<CommandInterface>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-            '$displayLabel [${branch}] [Built: ${DateTime.now().toString().substring(0, 16)}]'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/sweeperimage.jpeg',
+              height: 48, // Doubled from 24 to 48 pixels
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 8), // Add some spacing between image and text
+            const Text('WELL Sweeper'),
+          ],
+        ),
         actions: [
           if (_currentUsername != null)
             Column(
@@ -332,9 +342,15 @@ class _CommandInterfaceState extends State<CommandInterface>
                       _showDebugDialog(context);
                     } else if (value == 'post_debug') {
                       _showPostDebugDialog(context);
+                    } else if (value == 'about') {
+                      _showAboutDialog(context);
                     }
                   },
                   itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'about',
+                      child: Text('About'),
+                    ),
                     const PopupMenuItem(
                       value: 'edit',
                       child: Text('Edit Username/Password'),
@@ -1367,5 +1383,39 @@ class _CommandInterfaceState extends State<CommandInterface>
         ),
       );
     }
+  }
+
+  void _showAboutDialog(BuildContext context) {
+    String branch = '';
+    try {
+      final result = Process.runSync('git', ['branch', '--show-current']);
+      if (result.exitCode == 0) {
+        branch = result.stdout.toString().trim();
+      }
+    } catch (e) {
+      // Ignore errors if git command fails
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('About WELL App'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$displayLabel'),
+            if (branch.isNotEmpty) Text('Branch: $branch'),
+            Text('Built: ${DateTime.now().toString().substring(0, 16)}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }
