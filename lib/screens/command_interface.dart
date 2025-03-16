@@ -456,54 +456,13 @@ class _CommandInterfaceState extends State<CommandInterface>
                       onPressed: _showEditConfListDialog,
                       child: const Text('Edit Conf List'),
                     ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () => _showCommandDialog(context),
+                      child: const Text('Custom'),
+                    ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              // Command input row
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 40,
-                      child: TextField(
-                        controller: _commandController,
-                        focusNode: _focusNode,
-                        autofocus: true,
-                        keyboardType: TextInputType.text,
-                        decoration: InputDecoration(
-                          hintText: 'Enter command...',
-                          border: const OutlineInputBorder(),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 8),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () {
-                              _commandController.clear();
-                            },
-                          ),
-                        ),
-                        onSubmitted: (_) =>
-                            _executeCommand(_commandController.text.trim()),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () =>
-                        _executeCommand(_commandController.text.trim()),
-                    child: const Text('Submit'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _outputController.clear();
-                      });
-                    },
-                    child: const Text('Clear'),
-                  ),
-                ],
               ),
               const SizedBox(height: 8),
               TabBar(
@@ -1412,6 +1371,74 @@ class _CommandInterfaceState extends State<CommandInterface>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCommandDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Custom Command'),
+        content: SizedBox(
+          width: 600, // Set a reasonable width for the dialog
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: TextField(
+                        controller: _commandController,
+                        focusNode: _focusNode,
+                        autofocus: true,
+                        keyboardType: TextInputType.text,
+                        decoration: InputDecoration(
+                          hintText: 'Enter command...',
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 8),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _commandController.clear();
+                            },
+                          ),
+                        ),
+                        onSubmitted: (_) {
+                          _executeCommand(_commandController.text.trim());
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _commandController.clear();
+              setState(() {});
+            },
+            child: const Text('Clear'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await _executeCommand(_commandController.text.trim());
+              Navigator.of(dialogContext)
+                  .pop(); // Close dialog after command execution
+            },
+            child: const Text('Submit'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Close'),
           ),
         ],
