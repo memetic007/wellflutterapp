@@ -354,12 +354,15 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
   }
 
   void _showReplyDialog(BuildContext parentContext, Topic topic) {
+    print('DEBUG - TopicPostsContainer Reply:');
+    print('  Handle: ${topic.handle}');
+
     showDialog(
       context: parentContext,
       builder: (dialogContext) => ReplyDialog(
         title: 'Reply to ${topic.handle}',
-        conference: 'test', // Ensure we use 'test'
-        topicNumber: '2264', // Ensure we use '2264'
+        conference: topic.handle,
+        topicNumber: topic.handle,
         credentialsManager: widget.credentialsManager,
         showOutputField: false,
       ),

@@ -128,6 +128,13 @@ class WellApiService {
         };
       }
 
+      // Parse the topic handle to get the actual conference and topic number
+      final parts = topic.split('.');
+      if (parts.length >= 2) {
+        conference = parts[0];
+        topic = parts[1];
+      }
+
       // Convert content to base64
       final base64Content = base64.encode(utf8.encode(content));
 
@@ -142,8 +149,8 @@ class WellApiService {
         headers: _getHeaders(),
         body: jsonEncode({
           'base64_content': base64Content,
-          'conference': 'test', // Hardcode to 'test'
-          'topic': '2264', // Hardcode to '2264'
+          'conference': conference,
+          'topic': topic,
         }),
       );
 

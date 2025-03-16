@@ -275,12 +275,15 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
   }
 
   void _showReplyDialog(BuildContext parentContext) {
+    print('DEBUG - TopicPostWidget Reply:');
+    print('  Handle: ${widget.topic.handle}');
+
     showDialog(
       context: parentContext,
       builder: (dialogContext) => ReplyDialog(
         title: 'Reply to ${widget.topic.handle}',
-        conference: widget.topic.conf,
-        topicNumber: widget.topic.number.toString(),
+        conference: widget.topic.handle,
+        topicNumber: widget.topic.handle,
         credentialsManager: widget.credentialsManager,
         showOutputField: false,
       ),
