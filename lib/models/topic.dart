@@ -56,20 +56,21 @@ class Topic {
   }
 
   factory Topic.fromJson(Map<String, dynamic> json) {
-    // Extract topic handle from first post handle
-    String constructedHandle = '';
-    String? firstPostHandle = json['posts']?[0]?['handle']?.toString();
-    if (firstPostHandle != null) {
-      // Split on dots and take first two parts (e.g. "news.3578" from "news.3578.1468")
-      List<String> parts = firstPostHandle.split('.');
+    // Use the conf field directly from JSON instead of parsing from handle
+    String conf = json['conf']?.toString() ?? '';
+    String handle = json['handle']?.toString() ?? '';
+
+    // If conf is empty but we have a handle, try to extract conf from handle
+    if (conf.isEmpty && handle.isNotEmpty) {
+      final parts = handle.split('.');
       if (parts.length >= 2) {
-        constructedHandle = '${parts[0]}.${parts[1]}';
+        conf = parts[0];
       }
     }
 
     final topic = Topic(
-      conf: json['conf']?.toString() ?? '',
-      handle: constructedHandle, // Using the constructed handle
+      conf: conf,
+      handle: handle,
       title: json['title']?.toString() ?? '',
       posts: (json['posts'] as List?)
               ?.map(

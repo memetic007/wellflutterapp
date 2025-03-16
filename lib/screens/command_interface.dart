@@ -937,12 +937,16 @@ class _CommandInterfaceState extends State<CommandInterface>
 
         for (var confData in jsonData) {
           try {
-            final conf = Conf.fromJson(confData);
-            confs.add(conf);
-            if (conf.topics.isEmpty) {
-              emptyConfs++;
-              _outputController.text +=
-                  '\nConference "${conf.name}" has no topics';
+            // Use splitByConf to handle multiple conferences within one JSON object
+            List<Conf> splitConfs = Conf.splitByConf(confData);
+            confs.addAll(splitConfs);
+
+            for (var conf in splitConfs) {
+              if (conf.topics.isEmpty) {
+                emptyConfs++;
+                _outputController.text +=
+                    '\nConference "${conf.name}" has no topics';
+              }
             }
           } catch (e) {
             _outputController.text += '\nError processing conference: $e';
@@ -965,6 +969,12 @@ class _CommandInterfaceState extends State<CommandInterface>
               '\n - ${confs.length - emptyConfs} conferences with topics';
           _outputController.text += '\n - $emptyConfs empty conferences';
           _outputController.text += '\n - ${allTopics.length} total topics';
+
+          // Debug output for conference names
+          _outputController.text += '\nConference names:';
+          for (var conf in confs) {
+            _outputController.text += '\n - ${conf.name}';
+          }
 
           // Only reset to first topic if we have any
           if (allTopics.isNotEmpty) {

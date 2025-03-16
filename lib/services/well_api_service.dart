@@ -131,8 +131,10 @@ class WellApiService {
       // Parse the topic handle to get the actual conference and topic number
       final parts = topic.split('.');
       if (parts.length >= 2) {
-        conference = parts[0];
-        topic = parts[1];
+        // Take everything except the last part for conference
+        conference = parts.sublist(0, parts.length - 1).join('.');
+        // Take the last part as the topic number
+        topic = parts.last;
       }
 
       // Convert content to base64
