@@ -1393,11 +1393,12 @@ class _CommandInterfaceState extends State<CommandInterface>
                   Expanded(
                     child: SizedBox(
                       height: 40,
-                      child: TextField(
+                      child: TextEditorWithNav(
                         controller: _commandController,
-                        focusNode: _focusNode,
-                        autofocus: true,
-                        keyboardType: TextInputType.text,
+                        style: const TextStyle(
+                          fontFamily: 'Courier New',
+                          fontSize: 14,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Enter command...',
                           border: const OutlineInputBorder(),
@@ -1410,9 +1411,6 @@ class _CommandInterfaceState extends State<CommandInterface>
                             },
                           ),
                         ),
-                        onSubmitted: (_) {
-                          _executeCommand(_commandController.text.trim());
-                        },
                       ),
                     ),
                   ),
