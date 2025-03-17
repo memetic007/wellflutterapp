@@ -920,78 +920,83 @@ class _CommandInterfaceState extends State<CommandInterface>
     );
   }
 
-  void _processCommandResponse(dynamic jsonData) {
+  void _processCommandResponse(dynamic response) {
     try {
-      if (jsonData is String) {
-        jsonData = jsonDecode(jsonData);
-      }
+      // Handle different response formats
+      dynamic jsonData;
 
-      // Log the raw data for debugging
-      _outputController.text +=
-          '\nProcessing JSON data: ${jsonEncode(jsonData)}';
-
-      // Process conferences and topics
-      if (jsonData is List) {
-        final List<Conf> confs = [];
-        int emptyConfs = 0;
-
-        for (var confData in jsonData) {
-          try {
-            // Use splitByConf to handle multiple conferences within one JSON object
-            List<Conf> splitConfs = Conf.splitByConf(confData);
-            confs.addAll(splitConfs);
-
-            for (var conf in splitConfs) {
-              if (conf.topics.isEmpty) {
-                emptyConfs++;
-                _outputController.text +=
-                    '\nConference "${conf.name}" has no topics';
-              }
-            }
-          } catch (e) {
-            _outputController.text += '\nError processing conference: $e';
-          }
+      if (response is Map<String, dynamic>) {
+        // If response is already a Map, extract the 'response' field
+        final responseStr = response['response'];
+        if (responseStr is String) {
+          jsonData = jsonDecode(responseStr);
+        } else {
+          jsonData = responseStr;
         }
-
-        // Extract all topics from all confs
-        final allTopics = <Topic>[];
-        for (var conf in confs) {
-          allTopics.addAll(conf.topics);
-        }
-
-        setState(() {
-          _currentConfs = confs;
-          _allTopics = allTopics;
-          _currentTopics = allTopics;
-
-          _outputController.text += '\nLoaded ${confs.length} conferences:';
-          _outputController.text +=
-              '\n - ${confs.length - emptyConfs} conferences with topics';
-          _outputController.text += '\n - $emptyConfs empty conferences';
-          _outputController.text += '\n - ${allTopics.length} total topics';
-
-          // Debug output for conference names
-          _outputController.text += '\nConference names:';
-          for (var conf in confs) {
-            _outputController.text += '\n - ${conf.name}';
-          }
-
-          // Only reset to first topic if we have any
-          if (allTopics.isNotEmpty) {
-            // Force the container to show the first topic
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (_topicPostsContainerKey.currentState != null) {
-                _topicPostsContainerKey.currentState!.resetToStart();
-              }
-            });
-          }
-        });
+      } else if (response is String) {
+        // If response is a String, decode it directly
+        jsonData = jsonDecode(response);
       } else {
-        throw Exception('Invalid JSON format: expected array of conferences');
+        throw Exception('Unexpected response format: ${response.runtimeType}');
       }
+
+      print('Decoded JSON data: $jsonData');
+
+      // Process the conferences and topics
+      List<Conf> processedConfs = [];
+      List<Topic> allTopics = [];
+
+      // Check if the response is a list of conferences
+      if (jsonData is List) {
+        for (var confData in jsonData) {
+          // Create a Conf object from the JSON data
+          final conf = Conf.fromJson(confData);
+
+          // Always add the conference, even if it has no topics
+          processedConfs.add(conf);
+
+          // Add topics to the allTopics list if there are any
+          if (conf.topics.isNotEmpty) {
+            allTopics.addAll(conf.topics);
+          }
+
+          print(
+              'Processed conference: ${conf.name} with ${conf.topics.length} topics');
+        }
+      }
+
+      // Update the state with the current conferences and topics
+      setState(() {
+        _currentConfs = processedConfs;
+        _allTopics = allTopics;
+        _currentTopics = allTopics;
+
+        // Output detailed information about loaded conferences
+        int confsWithTopics =
+            processedConfs.where((c) => c.topics.isNotEmpty).length;
+        int confsWithoutTopics = processedConfs.length - confsWithTopics;
+
+        _outputController.text +=
+            '\nLoaded ${processedConfs.length} conferences:';
+        _outputController.text += '\n - $confsWithTopics with topics';
+        _outputController.text +=
+            '\n - $confsWithoutTopics with empty topic lists';
+
+        // List the conference names
+        _outputController.text +=
+            '\nConferences: ${processedConfs.map((c) => c.name).join(', ')}';
+
+        // Display the first topic if any are available
+        if (allTopics.isNotEmpty) {
+          _selectedTopic = allTopics.first;
+        } else {
+          _selectedTopic = null;
+        }
+      });
     } catch (e) {
-      _outputController.text += '\nError processing JSON: $e';
-      _outputController.text += '\nRaw data was: $jsonData';
+      setState(() {
+        _outputController.text += '\nError processing response: $e';
+      });
     }
   }
 
