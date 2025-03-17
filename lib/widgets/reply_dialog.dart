@@ -29,6 +29,7 @@ class _ReplyDialogState extends State<ReplyDialog> {
   final TextEditingController _replyController = TextEditingController();
   final TextEditingController _outputController = TextEditingController();
   final WellApiService _apiService = WellApiService();
+  bool _hideAfterPosting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +56,21 @@ class _ReplyDialogState extends State<ReplyDialog> {
                 maxLines: null,
                 expands: true,
               ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Checkbox(
+                  value: _hideAfterPosting,
+                  onChanged: (value) {
+                    setState(() {
+                      _hideAfterPosting = value ?? false;
+                    });
+                  },
+                ),
+                const Text('Hide after posting'),
+                const Spacer(),
+              ],
             ),
             if (widget.showOutputField) ...[
               const SizedBox(height: 8),
@@ -116,11 +132,16 @@ class _ReplyDialogState extends State<ReplyDialog> {
         }
       }
 
+      // Get username for hide functionality
+      final username = await widget.credentialsManager.getUsername();
+
       // Send the reply
       final result = await _apiService.postReply(
         content: replyText,
         conference: widget.conference,
         topic: widget.topicNumber,
+        hide: _hideAfterPosting,
+        username: username,
       );
 
       // Add debug output if showing output field
@@ -128,6 +149,7 @@ class _ReplyDialogState extends State<ReplyDialog> {
         _outputController.text += 'Widget: ReplyDialog\n';
         _outputController.text +=
             '\nSending reply to: ${widget.conference}.${widget.topicNumber}\n';
+        _outputController.text += 'Hide after posting: $_hideAfterPosting\n';
 
         if (result['output'].isNotEmpty) {
           _outputController.text += '\nResponse:\n${result['output']}\n';

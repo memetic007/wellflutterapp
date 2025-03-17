@@ -275,9 +275,6 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
   }
 
   void _showReplyDialog(BuildContext parentContext) {
-    print('DEBUG - TopicPostWidget Reply:');
-    print('  Handle: ${widget.topic.handle}');
-
     showDialog(
       context: parentContext,
       builder: (dialogContext) => ReplyDialog(

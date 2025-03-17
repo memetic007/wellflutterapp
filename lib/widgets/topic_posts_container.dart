@@ -354,9 +354,6 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
   }
 
   void _showReplyDialog(BuildContext parentContext, Topic topic) {
-    print('DEBUG - TopicPostsContainer Reply:');
-    print('  Handle: ${topic.handle}');
-
     showDialog(
       context: parentContext,
       builder: (dialogContext) => ReplyDialog(

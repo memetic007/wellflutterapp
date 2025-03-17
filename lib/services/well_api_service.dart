@@ -118,6 +118,8 @@ class WellApiService {
     required String content,
     required String conference,
     required String topic,
+    bool hide = false,
+    String? username,
   }) async {
     try {
       if (_sessionId == null) {
@@ -140,25 +142,24 @@ class WellApiService {
       // Convert content to base64
       final base64Content = base64.encode(utf8.encode(content));
 
-      // Log the request for debugging
-      print('Sending request to /postreply:');
-      print('  Conference: $conference');
-      print('  Topic: $topic');
-      print('  Session ID: $_sessionId');
+      // Prepare request body
+      final requestBody = {
+        'base64_content': base64Content,
+        'conference': conference,
+        'topic': topic,
+        'hide': hide,
+      };
+
+      // Add username if provided (needed for hide functionality)
+      if (username != null) {
+        requestBody['username'] = username;
+      }
 
       final response = await http.post(
         Uri.parse('$baseUrl/postreply'),
         headers: _getHeaders(),
-        body: jsonEncode({
-          'base64_content': base64Content,
-          'conference': conference,
-          'topic': topic,
-        }),
+        body: jsonEncode(requestBody),
       );
-
-      // Log the response for debugging
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
@@ -182,7 +183,6 @@ class WellApiService {
         };
       }
     } catch (e) {
-      print('Error in postReply: $e');
       return {
         'success': false,
         'output': '',
