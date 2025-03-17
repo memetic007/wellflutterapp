@@ -4,11 +4,17 @@ import 'package:http/http.dart' as http;
 class WellApiService {
   static const String baseUrl = 'http://localhost:5000';
   String? _sessionId;
+  String? _username;
+  String? _password;
 
   bool get isConnected => _sessionId != null;
 
   Future<Map<String, dynamic>> connect(String username, String password) async {
     try {
+      // Store credentials for reconnection attempts
+      _username = username;
+      _password = password;
+
       final response = await http.post(
         Uri.parse('$baseUrl/connect'),
         headers: {'Content-Type': 'application/json'},
@@ -43,75 +49,138 @@ class WellApiService {
     }
   }
 
-  Future<Map<String, dynamic>> processCommand(Map<String, dynamic> data) async {
+  // Helper method to attempt reconnection
+  Future<bool> _attemptReconnection() async {
+    if (_username == null || _password == null) {
+      return false;
+    }
+
     try {
-      final response = await http.post(
+      final result = await connect(_username!, _password!);
+      return result['success'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Helper method to execute HTTP requests with reconnection logic
+  Future<Map<String, dynamic>> _executeWithReconnection({
+    required Future<http.Response> Function() requestFn,
+    required Map<String, dynamic> Function(Map<String, dynamic>)
+        processResponseFn,
+  }) async {
+    try {
+      // First attempt
+      final response = await requestFn();
+
+      // If unauthorized, try to reconnect
+      if (response.statusCode == 401) {
+        // First reconnection attempt
+        bool reconnected = await _attemptReconnection();
+        if (reconnected) {
+          // Retry the original request
+          final retryResponse = await requestFn();
+          return processResponseFn(jsonDecode(retryResponse.body));
+        }
+
+        // Second reconnection attempt
+        reconnected = await _attemptReconnection();
+        if (reconnected) {
+          // Retry the original request again
+          final retryResponse = await requestFn();
+          return processResponseFn(jsonDecode(retryResponse.body));
+        }
+
+        // Both reconnection attempts failed
+        return {
+          'success': false,
+          'response': '',
+          'error': 'Reconnection failed',
+        };
+      }
+
+      // Process the response
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return processResponseFn(responseData);
+      } else {
+        return {
+          'success': false,
+          'response': '',
+          'error': 'Server error: ${response.statusCode}\n${response.body}',
+        };
+      }
+    } catch (e) {
+      // For network errors, try to reconnect
+      try {
+        // First reconnection attempt
+        bool reconnected = await _attemptReconnection();
+        if (reconnected) {
+          // Retry the original request
+          final retryResponse = await requestFn();
+          return processResponseFn(jsonDecode(retryResponse.body));
+        }
+
+        // Second reconnection attempt
+        reconnected = await _attemptReconnection();
+        if (reconnected) {
+          // Retry the original request again
+          final retryResponse = await requestFn();
+          return processResponseFn(jsonDecode(retryResponse.body));
+        }
+
+        // Both reconnection attempts failed
+        return {
+          'success': false,
+          'response': '',
+          'error': 'Reconnection failed',
+        };
+      } catch (reconnectError) {
+        return {
+          'success': false,
+          'response': '',
+          'error': 'Reconnection failed: $reconnectError',
+        };
+      }
+    }
+  }
+
+  Future<Map<String, dynamic>> processCommand(Map<String, dynamic> data) async {
+    return _executeWithReconnection(
+      requestFn: () => http.post(
         Uri.parse('$baseUrl/extractconfcontent'),
         headers: _getHeaders(),
         body: jsonEncode({
           'command': data['command'],
           'conflist': data['conflist'] ?? false,
         }),
-      );
-
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        return {
-          'success': true,
-          'response': responseData['output'] ?? '',
-          'conflist': responseData['conflist'] ?? [],
-          'error': responseData['error_output'] ?? '',
-        };
-      } else {
-        return {
-          'success': false,
-          'response': '',
-          'conflist': [],
-          'error': 'Server error: ${response.statusCode}\n${response.body}',
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'response': '',
-        'conflist': [],
-        'error': e.toString(),
-      };
-    }
+      ),
+      processResponseFn: (responseData) => {
+        'success': true,
+        'response': responseData['output'] ?? '',
+        'conflist': responseData['conflist'] ?? [],
+        'error': responseData['error_output'] ?? '',
+      },
+    );
   }
 
   Future<Map<String, dynamic>> processText(String text,
       {String? source}) async {
-    try {
-      final response = await http.post(
+    return _executeWithReconnection(
+      requestFn: () => http.post(
         Uri.parse('$baseUrl/process'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'text': text,
           'source': source,
         }),
-      );
-
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'response': jsonDecode(response.body),
-          'error': '',
-        };
-      } else {
-        return {
-          'success': false,
-          'response': '',
-          'error': 'Server error: ${response.statusCode}',
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'response': '',
-        'error': e.toString(),
-      };
-    }
+      ),
+      processResponseFn: (responseData) => {
+        'success': true,
+        'response': responseData,
+        'error': '',
+      },
+    );
   }
 
   Future<Map<String, dynamic>> postReply({
@@ -121,131 +190,72 @@ class WellApiService {
     bool hide = false,
     String? username,
   }) async {
-    try {
-      if (_sessionId == null) {
-        return {
-          'success': false,
-          'output': '',
-          'error': 'No active session. Please connect first.',
-        };
-      }
+    // Parse the topic handle to get the actual conference and topic number
+    final parts = topic.split('.');
+    if (parts.length >= 2) {
+      // Take everything except the last part for conference
+      conference = parts.sublist(0, parts.length - 1).join('.');
+      // Take the last part as the topic number
+      topic = parts.last;
+    }
 
-      // Parse the topic handle to get the actual conference and topic number
-      final parts = topic.split('.');
-      if (parts.length >= 2) {
-        // Take everything except the last part for conference
-        conference = parts.sublist(0, parts.length - 1).join('.');
-        // Take the last part as the topic number
-        topic = parts.last;
-      }
+    // Convert content to base64
+    final base64Content = base64.encode(utf8.encode(content));
 
-      // Convert content to base64
-      final base64Content = base64.encode(utf8.encode(content));
+    // Prepare request body
+    final requestBody = {
+      'base64_content': base64Content,
+      'conference': conference,
+      'topic': topic,
+      'hide': hide,
+    };
 
-      // Prepare request body
-      final requestBody = {
-        'base64_content': base64Content,
-        'conference': conference,
-        'topic': topic,
-        'hide': hide,
-      };
+    // Add username if provided (needed for hide functionality)
+    if (username != null) {
+      requestBody['username'] = username;
+    }
 
-      // Add username if provided (needed for hide functionality)
-      if (username != null) {
-        requestBody['username'] = username;
-      }
-
-      final response = await http.post(
+    return _executeWithReconnection(
+      requestFn: () => http.post(
         Uri.parse('$baseUrl/postreply'),
         headers: _getHeaders(),
         body: jsonEncode(requestBody),
-      );
-
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        return {
-          'success': true,
-          'output': responseData['output'] ?? responseData['response'] ?? '',
-          'error': '',
-        };
-      } else if (response.statusCode == 401) {
-        _sessionId = null;
-        return {
-          'success': false,
-          'output': '',
-          'error': 'Session expired. Please reconnect.',
-        };
-      } else {
-        return {
-          'success': false,
-          'output': '',
-          'error': 'Server error: ${response.statusCode}\n${response.body}',
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'output': '',
-        'error': e.toString(),
-      };
-    }
+      ),
+      processResponseFn: (responseData) => {
+        'success': true,
+        'output': responseData['output'] ?? responseData['response'] ?? '',
+        'error': '',
+      },
+    );
   }
 
   Future<Map<String, dynamic>> getCfList() async {
-    try {
-      final response = await http.get(
+    return _executeWithReconnection(
+      requestFn: () => http.get(
         Uri.parse('$baseUrl/cflist'),
         headers: _getHeaders(),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'cflist': data['cflist'],
-        };
-      } else {
-        return {
-          'success': false,
-          'error': jsonDecode(response.body)['error'] ?? 'Unknown error',
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'error': e.toString(),
-      };
-    }
+      ),
+      processResponseFn: (data) => {
+        'success': true,
+        'cflist': data['cflist'],
+      },
+    );
   }
 
   Future<Map<String, dynamic>> putCfList(List<String> cflist) async {
-    try {
-      final response = await http.post(
+    return _executeWithReconnection(
+      requestFn: () => http.post(
         Uri.parse('$baseUrl/put_cflist'),
         headers: _getHeaders(),
         body: jsonEncode({
           'cflist': cflist,
         }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'message': data['message'] ?? 'Successfully updated conference list',
-        };
-      } else {
-        return {
-          'success': false,
-          'error': jsonDecode(response.body)['error'] ?? 'Unknown error',
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'error': e.toString(),
-      };
-    }
+      ),
+      processResponseFn: (data) => {
+        'success': true,
+        'message': data['message'] ?? 'Successfully updated conference list',
+      },
+    );
   }
 
   Map<String, String> _getHeaders() {
