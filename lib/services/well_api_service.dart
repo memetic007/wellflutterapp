@@ -52,13 +52,26 @@ class WellApiService {
   // Helper method to attempt reconnection
   Future<bool> _attemptReconnection() async {
     if (_username == null || _password == null) {
+      print('No stored credentials for reconnection');
       return false;
     }
 
     try {
+      print('Attempting to reconnect with stored credentials');
       final result = await connect(_username!, _password!);
-      return result['success'] == true;
+      final success = result['success'] == true;
+      print('Reconnection result: $success');
+
+      // Check if session ID was obtained
+      if (success) {
+        print('Reconnection successful, session ID obtained');
+      } else {
+        print('Reconnection failed: ${result['error']}');
+      }
+
+      return success;
     } catch (e) {
+      print('Exception during reconnection attempt: $e');
       return false;
     }
   }
@@ -70,40 +83,63 @@ class WellApiService {
         processResponseFn,
   }) async {
     try {
+      print('Executing HTTP request');
       // First attempt
       final response = await requestFn();
+      print('Initial request status code: ${response.statusCode}');
 
-      // If unauthorized, try to reconnect
+      // Handle unauthorized error (401) - needs reconnection
       if (response.statusCode == 401) {
+        print('Got 401 unauthorized, attempting first reconnection');
+
         // First reconnection attempt
         bool reconnected = await _attemptReconnection();
+        print('First reconnection attempt result: $reconnected');
+
         if (reconnected) {
           // Retry the original request
+          print('Retrying request after first successful reconnection');
           final retryResponse = await requestFn();
-          return processResponseFn(jsonDecode(retryResponse.body));
+          print('Retry request status code: ${retryResponse.statusCode}');
+
+          if (retryResponse.statusCode == 200) {
+            return processResponseFn(jsonDecode(retryResponse.body));
+          }
+          // If still failing, try one more time
         }
 
         // Second reconnection attempt
+        print('Attempting second reconnection');
         reconnected = await _attemptReconnection();
+        print('Second reconnection attempt result: $reconnected');
+
         if (reconnected) {
           // Retry the original request again
+          print('Retrying request after second successful reconnection');
           final retryResponse = await requestFn();
-          return processResponseFn(jsonDecode(retryResponse.body));
+          print(
+              'Second retry request status code: ${retryResponse.statusCode}');
+
+          if (retryResponse.statusCode == 200) {
+            return processResponseFn(jsonDecode(retryResponse.body));
+          }
         }
 
         // Both reconnection attempts failed
         return {
           'success': false,
           'response': '',
-          'error': 'Reconnection failed',
+          'error': 'Authentication failed after reconnection attempts',
         };
       }
 
-      // Process the response
+      // Process the response for successful requests
       if (response.statusCode == 200) {
+        print('Request successful with status code 200');
         final responseData = jsonDecode(response.body);
         return processResponseFn(responseData);
       } else {
+        print('Request failed with status code: ${response.statusCode}');
         return {
           'success': false,
           'response': '',
@@ -111,31 +147,50 @@ class WellApiService {
         };
       }
     } catch (e) {
+      print('Network or other error: $e');
       // For network errors, try to reconnect
       try {
         // First reconnection attempt
+        print('Attempting reconnection after network error');
         bool reconnected = await _attemptReconnection();
+        print('Reconnection attempt result: $reconnected');
+
         if (reconnected) {
           // Retry the original request
+          print('Retrying request after reconnection');
           final retryResponse = await requestFn();
-          return processResponseFn(jsonDecode(retryResponse.body));
+          print('Retry request status code: ${retryResponse.statusCode}');
+
+          if (retryResponse.statusCode == 200) {
+            return processResponseFn(jsonDecode(retryResponse.body));
+          }
         }
 
         // Second reconnection attempt
+        print('Attempting second reconnection after network error');
         reconnected = await _attemptReconnection();
+        print('Second reconnection attempt result: $reconnected');
+
         if (reconnected) {
           // Retry the original request again
+          print('Retrying request after second reconnection');
           final retryResponse = await requestFn();
-          return processResponseFn(jsonDecode(retryResponse.body));
+          print(
+              'Second retry request status code: ${retryResponse.statusCode}');
+
+          if (retryResponse.statusCode == 200) {
+            return processResponseFn(jsonDecode(retryResponse.body));
+          }
         }
 
         // Both reconnection attempts failed
         return {
           'success': false,
           'response': '',
-          'error': 'Reconnection failed',
+          'error': 'Connection failed after reconnection attempts',
         };
       } catch (reconnectError) {
+        print('Error during reconnection attempt: $reconnectError');
         return {
           'success': false,
           'response': '',
