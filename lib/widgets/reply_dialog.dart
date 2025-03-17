@@ -30,6 +30,8 @@ class _ReplyDialogState extends State<ReplyDialog> {
   final TextEditingController _outputController = TextEditingController();
   final WellApiService _apiService = WellApiService();
   bool _hideAfterPosting = false;
+  bool _isSubmitting = false;
+  String _errorMessage = '';
 
   @override
   Widget build(BuildContext context) {
@@ -37,9 +39,43 @@ class _ReplyDialogState extends State<ReplyDialog> {
       title: Text(widget.title),
       content: SizedBox(
         width: 640,
-        height: 400,
+        height: _errorMessage.isNotEmpty ? 450 : 400,
         child: Column(
           children: [
+            if (_errorMessage.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  border: Border.all(color: Colors.red.shade300),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage,
+                        style: TextStyle(color: Colors.red.shade700),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16),
+                      onPressed: () {
+                        setState(() {
+                          _errorMessage = '';
+                        });
+                      },
+                      color: Colors.red.shade700,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             Expanded(
               child: TextEditorWithNav(
                 controller: _replyController,
@@ -97,18 +133,29 @@ class _ReplyDialogState extends State<ReplyDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: () => _handleSubmit(context),
-          child: const Text('Submit'),
+          onPressed: _isSubmitting ? null : () => _handleSubmit(context),
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Submit'),
         ),
       ],
     );
   }
 
   Future<void> _handleSubmit(BuildContext context) async {
+    setState(() {
+      _errorMessage = '';
+      _isSubmitting = true;
+    });
+
     try {
       // Clear the debug output first if showing output field
       if (widget.showOutputField) {
@@ -181,15 +228,16 @@ class _ReplyDialogState extends State<ReplyDialog> {
         throw Exception(result['error']);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error sending reply: $e'),
-          behavior: SnackBarBehavior.floating,
-          width: MediaQuery.of(context).size.width * 0.3,
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.red,
-        ),
-      );
+      setState(() {
+        _errorMessage = 'Error sending reply: ${e.toString()}';
+        _isSubmitting = false;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 }
