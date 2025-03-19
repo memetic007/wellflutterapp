@@ -99,6 +99,83 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
     }
   }
 
+  void _handleForgetChecked(bool? value) async {
+    setState(() {
+      _isForgetChecked = value ?? false;
+    });
+
+    if (value == true) {
+      try {
+        // Get conference name and topic from handle
+        final parts = widget.topic.handle.split('.');
+        final conference = parts.length > 1
+            ? parts.sublist(0, parts.length - 1).join('.')
+            : widget.topic.handle;
+        final topicNumber = parts.length > 1 ? parts.last : widget.topic.handle;
+
+        print('Forgetting topic: Conference=$conference, Topic=$topicNumber');
+
+        // Ensure we have a connection
+        if (!_apiService.isConnected) {
+          final username = await widget.credentialsManager.getUsername();
+          final password = await widget.credentialsManager.getPassword();
+
+          if (username == null || password == null) {
+            throw Exception('Username or password not found');
+          }
+
+          final connectResult = await _apiService.connect(username, password);
+          if (!connectResult['success']) {
+            throw Exception('Failed to connect: ${connectResult['error']}');
+          }
+        }
+
+        // Call the forget API
+        final result = await _apiService.forgetTopic(
+          conference: conference,
+          topic: topicNumber,
+        );
+
+        if (result['success']) {
+          // Show success message
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Topic forgotten: ${widget.topic.handle}'),
+                behavior: SnackBarBehavior.floating,
+                width: MediaQuery.of(context).size.width * 0.3,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+
+          // Call the onForgetPressed callback if provided
+          if (widget.onForgetPressed != null) {
+            widget.onForgetPressed!();
+          }
+        } else {
+          throw Exception(result['error'] ?? 'Failed to forget topic');
+        }
+      } catch (e) {
+        print('Error forgetting topic: $e');
+        if (mounted) {
+          setState(() {
+            _isForgetChecked = false; // Reset checkbox
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error forgetting topic: $e'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              width: MediaQuery.of(context).size.width * 0.3,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -160,21 +237,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                               const Text('Forget'),
                               Checkbox(
                                 value: _isForgetChecked,
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    _isForgetChecked = value ?? false;
-                                  });
-                                  if (value == true &&
-                                      widget.onForgetPressed != null) {
-                                    print('DEBUG - TopicPostWidget:');
-                                    print(
-                                        '  - Topic title: "${widget.topic.title}"');
-                                    print(
-                                        '  - Topic handle: "${widget.topic.handle}"');
-                                    print('  - Full topic: ${widget.topic}');
-                                    widget.onForgetPressed!();
-                                  }
-                                },
+                                onChanged: _handleForgetChecked,
                               ),
                             ],
                           ),
@@ -233,25 +296,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                                           const Text('Forget'),
                                           Checkbox(
                                             value: _isForgetChecked,
-                                            onChanged: (bool? value) {
-                                              setState(() {
-                                                _isForgetChecked =
-                                                    value ?? false;
-                                              });
-                                              if (value == true &&
-                                                  widget.onForgetPressed !=
-                                                      null) {
-                                                print(
-                                                    'DEBUG - TopicPostWidget:');
-                                                print(
-                                                    '  - Topic title: "${widget.topic.title}"');
-                                                print(
-                                                    '  - Topic handle: "${widget.topic.handle}"');
-                                                print(
-                                                    '  - Full topic: ${widget.topic}');
-                                                widget.onForgetPressed!();
-                                              }
-                                            },
+                                            onChanged: _handleForgetChecked,
                                           ),
                                         ],
                                       ),

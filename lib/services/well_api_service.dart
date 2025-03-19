@@ -313,6 +313,40 @@ class WellApiService {
     );
   }
 
+  Future<Map<String, dynamic>> forgetTopic({
+    required String conference,
+    required String topic,
+  }) async {
+    print('Attempting to forget topic: $conference.$topic');
+
+    // Parse the topic handle if it contains the conference
+    final parts = topic.split('.');
+    String topicNumber;
+    if (parts.length >= 2 && parts[0] == conference) {
+      // If topic is in format "conference.number", extract just the number part
+      topicNumber = parts.last;
+    } else {
+      // Otherwise, use the topic as is
+      topicNumber = topic;
+    }
+
+    return _executeWithReconnection(
+      requestFn: () => http.post(
+        Uri.parse('$baseUrl/forget'),
+        headers: _getHeaders(),
+        body: jsonEncode({
+          'conference': conference,
+          'topic': topicNumber,
+        }),
+      ),
+      processResponseFn: (responseData) => {
+        'success': responseData['success'] ?? false,
+        'message': responseData['message'] ?? 'Topic forgotten',
+        'error': responseData['error'] ?? '',
+      },
+    );
+  }
+
   Map<String, String> _getHeaders() {
     return {
       'Content-Type': 'application/json',
