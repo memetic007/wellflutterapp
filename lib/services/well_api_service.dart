@@ -313,11 +313,12 @@ class WellApiService {
     );
   }
 
-  Future<Map<String, dynamic>> forgetTopic({
+  Future<Map<String, dynamic>> _forgetOrRememberTopic({
     required String conference,
     required String topic,
+    required String option,
   }) async {
-    print('Attempting to forget topic: $conference.$topic');
+    print('Attempting to $option topic: $conference.$topic');
 
     // Parse the topic handle if it contains the conference
     final parts = topic.split('.');
@@ -332,18 +333,41 @@ class WellApiService {
 
     return _executeWithReconnection(
       requestFn: () => http.post(
-        Uri.parse('$baseUrl/forget'),
+        Uri.parse('$baseUrl/forget_remember'),
         headers: _getHeaders(),
         body: jsonEncode({
           'conference': conference,
           'topic': topicNumber,
+          'option': option,
         }),
       ),
       processResponseFn: (responseData) => {
         'success': responseData['success'] ?? false,
-        'message': responseData['message'] ?? 'Topic forgotten',
+        'message': responseData['message'] ?? 'Topic ${option}ed',
         'error': responseData['error'] ?? '',
       },
+    );
+  }
+
+  Future<Map<String, dynamic>> forgetTopic({
+    required String conference,
+    required String topic,
+  }) async {
+    return _forgetOrRememberTopic(
+      conference: conference,
+      topic: topic,
+      option: 'forget',
+    );
+  }
+
+  Future<Map<String, dynamic>> rememberTopic({
+    required String conference,
+    required String topic,
+  }) async {
+    return _forgetOrRememberTopic(
+      conference: conference,
+      topic: topic,
+      option: 'remember',
     );
   }
 

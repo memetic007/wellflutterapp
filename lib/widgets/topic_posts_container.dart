@@ -357,74 +357,82 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
       _forgetStates[index] = value ?? false;
     });
 
-    if (value == true) {
-      try {
-        // Get conference name and topic from handle
-        final parts = topic.handle.split('.');
-        final conference = parts.length > 1
-            ? parts.sublist(0, parts.length - 1).join('.')
-            : topic.handle;
-        final topicNumber = parts.length > 1 ? parts.last : topic.handle;
+    try {
+      // Get conference name and topic from handle
+      final parts = topic.handle.split('.');
+      final conference = parts.length > 1
+          ? parts.sublist(0, parts.length - 1).join('.')
+          : topic.handle;
+      final topicNumber = parts.length > 1 ? parts.last : topic.handle;
 
-        print('Forgetting topic: Conference=$conference, Topic=$topicNumber');
+      print(
+          '${value == true ? "Forgetting" : "Remembering"} topic: Conference=$conference, Topic=$topicNumber');
 
-        // Ensure we have a connection
-        if (!_apiService.isConnected) {
-          final username = await widget.credentialsManager.getUsername();
-          final password = await widget.credentialsManager.getPassword();
+      // Ensure we have a connection
+      if (!_apiService.isConnected) {
+        final username = await widget.credentialsManager.getUsername();
+        final password = await widget.credentialsManager.getPassword();
 
-          if (username == null || password == null) {
-            throw Exception('Username or password not found');
-          }
-
-          final connectResult = await _apiService.connect(username, password);
-          if (!connectResult['success']) {
-            throw Exception('Failed to connect: ${connectResult['error']}');
-          }
+        if (username == null || password == null) {
+          throw Exception('Username or password not found');
         }
 
-        // Call the forget API
-        final result = await _apiService.forgetTopic(
-          conference: conference,
-          topic: topicNumber,
-        );
+        final connectResult = await _apiService.connect(username, password);
+        if (!connectResult['success']) {
+          throw Exception('Failed to connect: ${connectResult['error']}');
+        }
+      }
 
-        if (result['success']) {
-          // Show success message
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Topic forgotten: ${topic.handle}'),
-                behavior: SnackBarBehavior.floating,
-                width: MediaQuery.of(context).size.width * 0.3,
-                duration: const Duration(seconds: 2),
-              ),
+      // Call the appropriate API based on checkbox state
+      final result = value == true
+          ? await _apiService.forgetTopic(
+              conference: conference,
+              topic: topicNumber,
+            )
+          : await _apiService.rememberTopic(
+              conference: conference,
+              topic: topicNumber,
             );
-          }
 
-          // Call the onForgetPressed callback if provided
-          if (widget.onForgetPressed != null) {
-            widget.onForgetPressed!();
-          }
-        } else {
-          throw Exception(result['error'] ?? 'Failed to forget topic');
-        }
-      } catch (e) {
-        print('Error forgetting topic: $e');
+      if (result['success']) {
+        // Show success message
         if (mounted) {
-          setState(() {
-            _forgetStates[index] = false; // Reset checkbox
-          });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error forgetting topic: $e'),
-              backgroundColor: Colors.red,
+              content: Text(
+                  'Topic ${value == true ? "forgotten" : "remembered"}: ${topic.handle}'),
               behavior: SnackBarBehavior.floating,
               width: MediaQuery.of(context).size.width * 0.3,
-              duration: const Duration(seconds: 4),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
+
+        // Call the onForgetPressed callback if provided
+        if (widget.onForgetPressed != null) {
+          widget.onForgetPressed!();
+        }
+      } else {
+        throw Exception(result['error'] ??
+            'Failed to ${value == true ? "forget" : "remember"} topic');
+      }
+    } catch (e) {
+      print('Error ${value == true ? "forgetting" : "remembering"} topic: $e');
+      if (mounted) {
+        setState(() {
+          _forgetStates[index] =
+              value == true; // Reset checkbox to previous state
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Error ${value == true ? "forgetting" : "remembering"} topic: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            width: MediaQuery.of(context).size.width * 0.3,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     }
   }
