@@ -558,47 +558,7 @@ class _CommandInterfaceState extends State<CommandInterface>
                                   topic: _selectedTopic!,
                                   credentialsManager: _credentialsManager,
                                   onForgetPressed: () {
-                                    setState(() {
-                                      _outputController.text +=
-                                          '\nForget was pressed for topic: ${_selectedTopic!.handle}';
-                                      WidgetsBinding.instance
-                                          .addPostFrameCallback((_) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(Icons.check_circle,
-                                                    color: Colors.white),
-                                                const SizedBox(width: 8),
-                                                Expanded(
-                                                  child: Text(
-                                                    'Forget was pressed for topic: ${_selectedTopic!.handle}',
-                                                    overflow:
-                                                        TextOverflow.visible,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            behavior: SnackBarBehavior.floating,
-                                            width: MediaQuery.of(context)
-                                                    .size
-                                                    .width *
-                                                0.8,
-                                            backgroundColor: Colors.green,
-                                            duration:
-                                                const Duration(seconds: 2),
-                                          ),
-                                        );
-                                        _outputController.selection =
-                                            TextSelection.fromPosition(
-                                          TextPosition(
-                                              offset: _outputController
-                                                  .text.length),
-                                        );
-                                      });
-                                    });
+                                    // Removed redundant message
                                   },
                                 ),
                         ),
@@ -1021,35 +981,7 @@ class _CommandInterfaceState extends State<CommandInterface>
   void _handleForgetPressed() {
     final topic = _currentTopics[_currentTopicIndex];
     setState(() {
-      _outputController.text +=
-          '\nForget was pressed for topic: ${topic.handle}';
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Forget was pressed for topic: ${topic.handle}',
-                    overflow: TextOverflow.visible,
-                  ),
-                ),
-              ],
-            ),
-            behavior: SnackBarBehavior.floating,
-            width: MediaQuery.of(context).size.width * 0.8,
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        _outputController.selection = TextSelection.fromPosition(
-          TextPosition(offset: _outputController.text.length),
-        );
-      });
+      // Removed redundant message
     });
   }
 
