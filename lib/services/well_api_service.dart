@@ -371,6 +371,39 @@ class WellApiService {
     );
   }
 
+  Future<Map<String, dynamic>> disconnect() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/disconnect'),
+        headers: _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        _sessionId = null;
+        _username = null;
+        _password = null;
+        return {
+          'success': true,
+          'message': 'Disconnected successfully',
+          'error': '',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': '',
+          'error':
+              'Failed to disconnect: ${response.statusCode}\n${response.body}',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': '',
+        'error': e.toString(),
+      };
+    }
+  }
+
   Map<String, String> _getHeaders() {
     return {
       'Content-Type': 'application/json',

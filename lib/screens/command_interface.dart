@@ -153,6 +153,8 @@ class _CommandInterfaceState extends State<CommandInterface>
       builder: (context) => LoginDialog(
         initialUsername: currentUsername,
         initialPassword: currentPassword,
+        apiService: _apiService,
+        credentialsManager: _credentialsManager,
       ),
     );
 
