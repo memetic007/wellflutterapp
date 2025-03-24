@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'screens/command_interface.dart';
+import 'services/hive_box_service.dart';
 import 'dart:io';
 
-const String displayLabel = 'WELL App Prototype v0.0.3';
+const displayLabel = 'WELL Sweeper';
 const String appVersion = 'v0.0.3';
 
 class WinApp extends StatefulWidget {
@@ -57,15 +58,17 @@ class _WinAppState extends State<WinApp> {
       title:
           '$displayLabel [${branch}] [Built: $formattedTime]', // Updated format
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
       home: const CommandInterface(),
     );
   }
 }
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await HiveBoxService.init();
 
   // Handle multiple exit signals
   if (Platform.isWindows) {

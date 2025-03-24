@@ -18,6 +18,7 @@ import '../widgets/post_debug_dialog.dart';
 import '../services/well_api_service.dart';
 import '../widgets/text_editor_with_nav.dart';
 import '../widgets/new_topic_dialog.dart';
+import '../services/hive_box_service.dart';
 
 // Define intents at file level
 class NavigateLeftIntent extends Intent {
@@ -69,8 +70,6 @@ class _CommandInterfaceState extends State<CommandInterface>
   final TextEditingController _outputController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
-  static const String _commandSaveKey = 'last_command';
-
   late TabController _tabController;
   List<Topic> _currentTopics = [];
   List<Conf> _currentConfs = [];
@@ -121,8 +120,7 @@ class _CommandInterfaceState extends State<CommandInterface>
   }
 
   Future<void> _loadSavedCommand() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedCommand = prefs.getString(_commandSaveKey);
+    final savedCommand = HiveBoxService.getLastCommand();
     if (savedCommand != null) {
       setState(() {
         _commandController.text = savedCommand;
@@ -131,8 +129,7 @@ class _CommandInterfaceState extends State<CommandInterface>
   }
 
   Future<void> _saveCommand() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_commandSaveKey, _commandController.text.trim());
+    await HiveBoxService.saveLastCommand(_commandController.text.trim());
   }
 
   Future<void> _checkCredentials() async {
@@ -927,8 +924,6 @@ class _CommandInterfaceState extends State<CommandInterface>
       } else {
         throw Exception('Unexpected response format: ${response.runtimeType}');
       }
-
-      print('Decoded JSON data: $jsonData');
 
       // Process the conferences and topics
       List<Conf> processedConfs = [];
