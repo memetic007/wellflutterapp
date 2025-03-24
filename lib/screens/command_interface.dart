@@ -17,6 +17,7 @@ import '../services/post_debug_service.dart';
 import '../widgets/post_debug_dialog.dart';
 import '../services/well_api_service.dart';
 import '../widgets/text_editor_with_nav.dart';
+import '../widgets/new_topic_dialog.dart';
 
 // Define intents at file level
 class NavigateLeftIntent extends Intent {
@@ -266,10 +267,32 @@ class _CommandInterfaceState extends State<CommandInterface>
   }
 
   void _showButtonPressed(BuildContext context, String buttonName) {
-    String message;
+    String? message;
     switch (buttonName) {
       case 'createNewTopicPressed':
-        message = 'New Topic button was pressed';
+        if (_selectedConf == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please select a conference first'),
+              behavior: SnackBarBehavior.floating,
+              width: 300,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+        showDialog(
+          context: context,
+          builder: (context) => NewTopicDialog(
+            conference: _selectedConf!.name,
+            credentialsManager: _credentialsManager,
+          ),
+        ).then((success) {
+          if (success == true) {
+            // Refresh the topics list
+            _refreshTopics();
+          }
+        });
         break;
       case 'topicsMenuTabRefresh':
         message = 'Topics Menu Refresh button was pressed';
@@ -279,18 +302,21 @@ class _CommandInterfaceState extends State<CommandInterface>
         message = '$buttonName button was pressed';
     }
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+    if (message != null) {
+      final finalMessage = message;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          content: Text(finalMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -1346,5 +1372,10 @@ class _CommandInterfaceState extends State<CommandInterface>
 
   void _refreshConferences() {
     // Implement the logic to refresh the conferences
+  }
+
+  void _refreshTopics() {
+    // Refresh topics by getting the conference list again
+    _getConfList();
   }
 }

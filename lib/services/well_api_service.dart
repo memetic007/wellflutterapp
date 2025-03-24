@@ -244,6 +244,8 @@ class WellApiService {
     required String topic,
     bool hide = false,
     String? username,
+    String? option,
+    String? title,
   }) async {
     // Parse the topic handle to get the actual conference and topic number
     final parts = topic.split('.');
@@ -268,6 +270,14 @@ class WellApiService {
     // Add username if provided (needed for hide functionality)
     if (username != null) {
       requestBody['username'] = username;
+    }
+
+    // Add option and title if provided (needed for new topic functionality)
+    if (option != null) {
+      requestBody['option'] = option;
+    }
+    if (title != null) {
+      requestBody['title'] = title;
     }
 
     return _executeWithReconnection(
