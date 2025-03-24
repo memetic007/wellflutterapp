@@ -103,6 +103,7 @@ class _CommandInterfaceState extends State<CommandInterface>
       vsync: this,
     );
     _loadSavedCommand();
+    _loadSavedJsonResponse();
     _checkCredentials();
   }
 
@@ -130,6 +131,13 @@ class _CommandInterfaceState extends State<CommandInterface>
 
   Future<void> _saveCommand() async {
     await HiveBoxService.saveLastCommand(_commandController.text.trim());
+  }
+
+  Future<void> _loadSavedJsonResponse() async {
+    final jsonData = HiveBoxService.getLastJsonResponse();
+    if (jsonData != null) {
+      _processCommandResponse(jsonData);
+    }
   }
 
   Future<void> _checkCredentials() async {
@@ -208,6 +216,8 @@ class _CommandInterfaceState extends State<CommandInterface>
           if (response['response'].isNotEmpty) {
             try {
               final jsonData = response['response'];
+              // Save the JSON response
+              HiveBoxService.saveLastJsonResponse(jsonData);
               _processCommandResponse(jsonData);
             } catch (e) {
               _outputController.text += '\nError processing response: $e\n';
@@ -1045,6 +1055,8 @@ class _CommandInterfaceState extends State<CommandInterface>
           if (response['response'].isNotEmpty) {
             try {
               final jsonData = response['response'];
+              // Save the JSON response
+              HiveBoxService.saveLastJsonResponse(jsonData);
               _processCommandResponse(jsonData);
             } catch (e) {
               _outputController.text += '\nError processing response: $e\n';
