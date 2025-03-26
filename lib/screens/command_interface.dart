@@ -91,9 +91,12 @@ class _CommandInterfaceState extends State<CommandInterface>
       ? 'New Posts (all)'
       : 'All Posts (${_selectedConf!.name})';
 
+  String get _watchTabLabel => 'Watch (${_watchedTopics.length} topics)';
+
   int _currentTopicIndex = 0;
 
   final _topicPostsContainerKey = GlobalKey<TopicPostsContainerState>();
+  final _watchTabContainerKey = GlobalKey<TopicPostsContainerState>();
 
   final _apiService = WellApiService();
 
@@ -505,7 +508,7 @@ class _CommandInterfaceState extends State<CommandInterface>
                   const Tab(text: 'Conferences'),
                   Tab(text: _topicsMenuLabel),
                   Tab(text: _allTopicsLabel),
-                  const Tab(text: 'Watch'),
+                  Tab(text: _watchTabLabel),
                 ],
               ),
               Expanded(
@@ -729,9 +732,81 @@ class _CommandInterfaceState extends State<CommandInterface>
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text(
-                                      'Watching ${_watchedTopics.length} topics',
-                                      style: const TextStyle(fontSize: 16),
+                                    ElevatedButton(
+                                      onPressed: _watchTabContainerKey
+                                                  .currentState?.isScrolling !=
+                                              true
+                                          ? () {
+                                              final container =
+                                                  _watchTabContainerKey
+                                                      .currentState;
+                                              if (container != null) {
+                                                container.scrollToIndex(0);
+                                              }
+                                            }
+                                          : null,
+                                      child: const Text('Home'),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton(
+                                      onPressed: _currentTopicIndex > 0 &&
+                                              _watchTabContainerKey.currentState
+                                                      ?.isScrolling !=
+                                                  true
+                                          ? () {
+                                              final container =
+                                                  _watchTabContainerKey
+                                                      .currentState;
+                                              if (container != null) {
+                                                container.scrollToPrevious();
+                                              }
+                                            }
+                                          : null,
+                                      child: const Text('Previous'),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16.0),
+                                      child: Text(
+                                        _watchTabContainerKey.currentState
+                                                ?.currentPositionText ??
+                                            'Topic 1 of ${_watchedTopics.length}',
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: _currentTopicIndex <
+                                                  _watchedTopics.length - 1 &&
+                                              _watchTabContainerKey.currentState
+                                                      ?.isScrolling !=
+                                                  true
+                                          ? () {
+                                              final container =
+                                                  _watchTabContainerKey
+                                                      .currentState;
+                                              if (container != null) {
+                                                container.scrollToNext();
+                                              }
+                                            }
+                                          : null,
+                                      child: const Text('Next'),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton(
+                                      onPressed: _watchTabContainerKey
+                                                  .currentState?.isScrolling !=
+                                              true
+                                          ? () {
+                                              final container =
+                                                  _watchTabContainerKey
+                                                      .currentState;
+                                              if (container != null) {
+                                                container.scrollToIndex(
+                                                    _watchedTopics.length - 1);
+                                              }
+                                            }
+                                          : null,
+                                      child: const Text('End'),
                                     ),
                                   ],
                                 ),
@@ -741,6 +816,7 @@ class _CommandInterfaceState extends State<CommandInterface>
                         ),
                         Expanded(
                           child: TopicPostsContainer(
+                            key: _watchTabContainerKey,
                             topics: _watchedTopics,
                             credentialsManager: _credentialsManager,
                             isTopicWatched: _isTopicWatched,
