@@ -45,6 +45,7 @@ class Topic {
   Map<String, dynamic> toJson() {
     return {
       'conf': conf,
+      'handle': handle,
       'number': number,
       'title': title,
       'posts': posts.map((post) => post.toJson()).toList(),

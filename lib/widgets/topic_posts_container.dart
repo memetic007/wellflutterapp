@@ -13,6 +13,7 @@ import '../services/post_debug_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/well_api_service.dart';
 import 'reply_dialog.dart';
+import 'topic_post_widget.dart';
 
 class TopicPostsContainer extends StatefulWidget {
   final List<Topic> topics;
@@ -20,6 +21,8 @@ class TopicPostsContainer extends StatefulWidget {
   final VoidCallback? onNext;
   final VoidCallback? onForgetPressed;
   final CredentialsManager credentialsManager;
+  final bool Function(Topic) isTopicWatched;
+  final Function(Topic, bool) onWatchChanged;
 
   const TopicPostsContainer({
     super.key,
@@ -28,6 +31,8 @@ class TopicPostsContainer extends StatefulWidget {
     this.onNext,
     this.onForgetPressed,
     required this.credentialsManager,
+    required this.isTopicWatched,
+    required this.onWatchChanged,
   });
 
   @override
@@ -85,43 +90,9 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
       return const Center(child: Text('No topics available'));
     }
 
-    return RawKeyboardListener(
+    return Focus(
       focusNode: _focusNode,
       autofocus: true,
-      onKey: (RawKeyEvent event) {
-        if (event is RawKeyDownEvent) {
-          if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-            // Scroll by approximately one line of text (about 24 pixels)
-            _itemScrollController.scrollTo(
-              index: _currentIndex,
-              duration: const Duration(milliseconds: 100),
-              curve: Curves.easeInOut,
-              alignment: _getNextAlignment(-24.0),
-            );
-          } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-            // Scroll up by one line
-            _itemScrollController.scrollTo(
-              index: _currentIndex,
-              duration: const Duration(milliseconds: 100),
-              curve: Curves.easeInOut,
-              alignment: _getNextAlignment(24.0),
-            );
-          } else if (event.logicalKey == LogicalKeyboardKey.pageDown) {
-            // Keep larger jump for page up/down
-            final newIndex =
-                math.min(_currentIndex + 5, widget.topics.length - 1);
-            scrollToIndex(newIndex);
-          } else if (event.logicalKey == LogicalKeyboardKey.pageUp) {
-            // Keep larger jump for page up/down
-            final newIndex = math.max(_currentIndex - 5, 0);
-            scrollToIndex(newIndex);
-          } else if (event.logicalKey == LogicalKeyboardKey.home) {
-            scrollToIndex(0);
-          } else if (event.logicalKey == LogicalKeyboardKey.end) {
-            scrollToIndex(widget.topics.length - 1, alignment: 1.0);
-          }
-        }
-      },
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
@@ -134,7 +105,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Top topic bar
+                  // Topic header
                   Container(
                     padding: const EdgeInsets.all(8.0),
                     decoration: BoxDecoration(
@@ -171,10 +142,16 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            const Text('Watch'),
+                            Checkbox(
+                              value: widget.isTopicWatched(topic),
+                              onChanged: (value) =>
+                                  widget.onWatchChanged(topic, value ?? false),
+                            ),
                             const Text('Forget'),
                             Checkbox(
                               value: _forgetStates[index] ?? false,
-                              onChanged: (bool? value) =>
+                              onChanged: (value) =>
                                   _handleForgetChecked(value, index, topic),
                             ),
                           ],
@@ -184,53 +161,6 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                   ),
                   // Posts
                   ...topic.posts.map((post) => PostWidget(post: post)).toList(),
-                  // Bottom topic bar
-                  Card(
-                    margin: const EdgeInsets.symmetric(
-                        vertical: 8.0, horizontal: 12.0),
-                    elevation: 3,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(
-                            0xFFF5F5F5), // Very light neutral grey, just slightly darker than Card
-                        borderRadius: BorderRadius.circular(4.0),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0, vertical: 8.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Left: Topic Handle
-                          Text(
-                            topic.handle,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
-                            ),
-                          ),
-                          // Center: Reply Button
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.reply),
-                            label: const Text('Reply'),
-                            onPressed: () => _showReplyDialog(context, topic),
-                          ),
-                          // Right: Forget Checkbox
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text('Forget'),
-                              Checkbox(
-                                value: _forgetStates[index] ?? false,
-                                onChanged: (bool? value) =>
-                                    _handleForgetChecked(value, index, topic),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                   // Add spacing between topics
                   const SizedBox(height: 16.0),
                 ],

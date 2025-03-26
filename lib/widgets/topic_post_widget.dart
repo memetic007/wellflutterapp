@@ -15,12 +15,16 @@ class TopicPostWidget extends StatefulWidget {
   final Topic topic;
   final VoidCallback? onForgetPressed;
   final CredentialsManager credentialsManager;
+  final bool isWatched;
+  final Function(bool) onWatchChanged;
 
   const TopicPostWidget({
     super.key,
     required this.topic,
     required this.credentialsManager,
     this.onForgetPressed,
+    required this.isWatched,
+    required this.onWatchChanged,
   });
 
   @override
@@ -31,6 +35,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
   bool _isForgetChecked = false;
+  bool _isWatched = false;
   final TextEditingController _outputController = TextEditingController();
   late WellApiService _apiService;
 
@@ -41,6 +46,15 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
       _focusNode.requestFocus();
     });
     _apiService = WellApiService();
+    _isWatched = widget.isWatched;
+  }
+
+  @override
+  void didUpdateWidget(TopicPostWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isWatched != widget.isWatched) {
+      _isWatched = widget.isWatched;
+    }
   }
 
   void _handleKeyEvent(RawKeyEvent event) {
@@ -183,6 +197,13 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
     }
   }
 
+  void _handleWatchChanged(bool? value) {
+    setState(() {
+      _isWatched = value ?? false;
+    });
+    widget.onWatchChanged(_isWatched);
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -241,6 +262,11 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              const Text('Watch'),
+                              Checkbox(
+                                value: _isWatched,
+                                onChanged: _handleWatchChanged,
+                              ),
                               const Text('Forget'),
                               Checkbox(
                                 value: _isForgetChecked,
@@ -296,10 +322,15 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                                         onPressed: () =>
                                             _showReplyDialog(context),
                                       ),
-                                      // Right: Forget Checkbox
+                                      // Right: Watch and Forget Checkboxes
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
+                                          const Text('Watch'),
+                                          Checkbox(
+                                            value: _isWatched,
+                                            onChanged: _handleWatchChanged,
+                                          ),
                                           const Text('Forget'),
                                           Checkbox(
                                             value: _isForgetChecked,

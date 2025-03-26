@@ -74,6 +74,7 @@ class _CommandInterfaceState extends State<CommandInterface>
   late TabController _tabController;
   List<Topic> _currentTopics = [];
   List<Conf> _currentConfs = [];
+  Map<String, Topic> _watchList = {};
   Topic? _selectedTopic;
   Conf? _selectedConf;
 
@@ -100,24 +101,29 @@ class _CommandInterfaceState extends State<CommandInterface>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 3,
+      length: 4,
       vsync: this,
     );
+    _watchList = {};
     _loadSavedCommand();
-    _checkCredentials();
+    _checkCredentials().then((_) {
+      _loadWatchList();
+    });
   }
 
   @override
   void didUpdateWidget(CommandInterface oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Ensure TabController is updated on hot reload
-    if (_tabController.length != 3) {
+    if (_tabController.length != 4) {
       _tabController.dispose();
       _tabController = TabController(
-        length: 3,
+        length: 4,
         vsync: this,
       );
     }
+    // Reset watch list on hot reload to avoid type mismatches
+    _watchList = Map<String, Topic>.from(_watchList);
   }
 
   Future<void> _loadSavedCommand() async {
@@ -499,6 +505,7 @@ class _CommandInterfaceState extends State<CommandInterface>
                   const Tab(text: 'Conferences'),
                   Tab(text: _topicsMenuLabel),
                   Tab(text: _allTopicsLabel),
+                  const Tab(text: 'Watch'),
                 ],
               ),
               Expanded(
@@ -583,9 +590,10 @@ class _CommandInterfaceState extends State<CommandInterface>
                               : TopicPostWidget(
                                   topic: _selectedTopic!,
                                   credentialsManager: _credentialsManager,
-                                  onForgetPressed: () {
-                                    // Removed redundant message
-                                  },
+                                  isWatched: _isTopicWatched(_selectedTopic!),
+                                  onWatchChanged: (value) =>
+                                      _handleWatchChanged(
+                                          _selectedTopic!, value),
                                 ),
                         ),
                       ],
@@ -696,15 +704,47 @@ class _CommandInterfaceState extends State<CommandInterface>
                           child: TopicPostsContainer(
                             key: _topicPostsContainerKey,
                             topics: _currentTopics,
-                            onPrevious: _currentTopicIndex > 0
-                                ? _handlePreviousPressed
-                                : null,
-                            onNext:
-                                _currentTopicIndex < _currentTopics.length - 1
-                                    ? _handleNextPressed
-                                    : null,
-                            onForgetPressed: _handleForgetPressed,
                             credentialsManager: _credentialsManager,
+                            isTopicWatched: _isTopicWatched,
+                            onWatchChanged: _handleWatchChanged,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Watch tab
+                    Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Row(
+                            children: [
+                              if (_selectedConf != null) ...[
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: () => _handleConfSelected(null),
+                                  child: const Text('All Confs'),
+                                ),
+                              ],
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Watching ${_watchedTopics.length} topics',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: TopicPostsContainer(
+                            topics: _watchedTopics,
+                            credentialsManager: _credentialsManager,
+                            isTopicWatched: _isTopicWatched,
+                            onWatchChanged: _handleWatchChanged,
                           ),
                         ),
                       ],
@@ -730,6 +770,7 @@ class _CommandInterfaceState extends State<CommandInterface>
     _currentTopics.clear();
     _currentConfs.clear();
     _allTopics.clear();
+    _watchList.clear(); // Clear the watch list
 
     if (_topicPostsContainerKey.currentState != null) {
       _topicPostsContainerKey.currentState!.dispose();
@@ -953,6 +994,9 @@ class _CommandInterfaceState extends State<CommandInterface>
         }
       }
 
+      // Update watched topics with new content
+      _updateWatchedTopics(allTopics);
+
       // Update the state with the current conferences and topics
       setState(() {
         _currentConfs = processedConfs;
@@ -969,22 +1013,38 @@ class _CommandInterfaceState extends State<CommandInterface>
         _outputController.text += '\n - $confsWithTopics with topics';
         _outputController.text +=
             '\n - $confsWithoutTopics with empty topic lists';
-
-        // List the conference names
         _outputController.text +=
             '\nConferences: ${processedConfs.map((c) => c.name).join(', ')}';
-
-        // Display the first topic if any are available
-        if (allTopics.isNotEmpty) {
-          _selectedTopic = allTopics.first;
-        } else {
-          _selectedTopic = null;
-        }
+        _outputController.text += '\nWatching: ${_watchedTopics.length} topics';
       });
     } catch (e) {
       setState(() {
         _outputController.text += '\nError processing response: $e';
       });
+    }
+  }
+
+  void _updateWatchedTopics(List<Topic> newTopics) {
+    // Create a map of new topics by handle for quick lookup
+    final newTopicsMap = {for (var topic in newTopics) topic.handle: topic};
+
+    // Update watched topics with new content
+    for (var handle in _watchList.keys.toList()) {
+      if (newTopicsMap.containsKey(handle)) {
+        // Update watched topic with new content but keep posts empty
+        final newTopic = newTopicsMap[handle]!;
+        _watchList[handle] = Topic(
+          conf: newTopic.conf,
+          handle: newTopic.handle,
+          title: newTopic.title,
+          number: newTopic.number,
+          lastPost: newTopic.lastPost,
+          lastPostTime: newTopic.lastPostTime,
+          lastPoster: newTopic.lastPoster,
+          url: newTopic.url,
+          posts: [], // Keep posts empty in watch list
+        );
+      }
     }
   }
 
@@ -1375,7 +1435,158 @@ class _CommandInterfaceState extends State<CommandInterface>
   }
 
   void _refreshTopics() {
-    // Refresh topics by getting the conference list again
-    _getConfList();
+    if (_selectedConf != null) {
+      // If we have a selected conference, refresh its topics
+      _refreshConferenceTopics(_selectedConf!.name);
+    } else {
+      // Only get the full conference list if no conference is selected
+      _getConfList();
+    }
+  }
+
+  Future<void> _refreshConferenceTopics(String conferenceName) async {
+    try {
+      final username = await _credentialsManager.getUsername();
+      final password = await _credentialsManager.getPassword();
+
+      if (username == null || password == null) {
+        _showError('Username or password not found');
+        return;
+      }
+
+      // Ensure we're connected
+      if (!_apiService.isConnected) {
+        final connectResult = await _apiService.connect(username, password);
+        if (!connectResult['success']) {
+          _showError('Failed to connect: ${connectResult['error']}');
+          return;
+        }
+      }
+
+      // Execute the command to get topics for this conference
+      await _executeCommand('get $conferenceName');
+
+      // Make sure we stay on the topics menu tab
+      _tabController.animateTo(1); // Index 1 is the topics menu tab
+    } catch (e) {
+      _showError('Error refreshing topics: $e');
+    }
+  }
+
+  void _handleWatchChanged(Topic topic, bool isWatched) async {
+    setState(() {
+      if (isWatched) {
+        // Create a copy of the topic with empty posts list
+        final watchedTopic = Topic(
+          conf: topic.conf,
+          handle: topic.handle,
+          title: topic.title,
+          number: topic.number,
+          lastPost: topic.lastPost,
+          lastPostTime: topic.lastPostTime,
+          lastPoster: topic.lastPoster,
+          url: topic.url,
+          posts: [], // Empty posts list
+        );
+
+        // Add to watch list using handle as key
+        _watchList[topic.handle] = watchedTopic;
+      } else {
+        // Remove from watch list using handle as key
+        _watchList.remove(topic.handle);
+      }
+    });
+
+    // Send updated watch list to server
+    try {
+      final result = await _apiService.putWatchList(_watchList);
+      if (!result['success']) {
+        _showError('Failed to update watch list on server: ${result['error']}');
+      }
+    } catch (e) {
+      _showError('Error updating watch list on server: $e');
+    }
+  }
+
+  bool _isTopicWatched(Topic topic) {
+    return _watchList.containsKey(topic.handle);
+  }
+
+  Future<void> _loadWatchList() async {
+    try {
+      // Ensure we have credentials
+      final username = await _credentialsManager.getUsername();
+      final password = await _credentialsManager.getPassword();
+
+      if (username == null || password == null) {
+        _showError('Username or password not found');
+        return;
+      }
+
+      // Ensure we're connected
+      if (!_apiService.isConnected) {
+        final connectResult = await _apiService.connect(username, password);
+        if (!connectResult['success']) {
+          _showError('Failed to connect: ${connectResult['error']}');
+          return;
+        }
+      }
+
+      // Get the watch list from server
+      final result = await _apiService.getWatchList();
+      if (result['success']) {
+        final watchListJson = result['watch_list'];
+        if (watchListJson != null && watchListJson.isNotEmpty) {
+          try {
+            // Parse the JSON string into a Map
+            final Map<String, dynamic> watchListData =
+                jsonDecode(watchListJson);
+
+            // Convert each value in the map to a Topic object
+            setState(() {
+              _watchList = Map.fromEntries(
+                watchListData.entries.map(
+                  (entry) => MapEntry(
+                    entry.key,
+                    Topic.fromJson(entry.value as Map<String, dynamic>),
+                  ),
+                ),
+              );
+            });
+          } catch (e) {
+            print('Error parsing watch list: $e');
+            // Initialize empty watch list on parse error
+            setState(() {
+              _watchList = {};
+            });
+          }
+        } else {
+          // Initialize empty watch list if no data returned
+          setState(() {
+            _watchList = {};
+          });
+        }
+      } else {
+        print('Failed to get watch list: ${result['error']}');
+        // Initialize empty watch list on error
+        setState(() {
+          _watchList = {};
+        });
+      }
+    } catch (e) {
+      print('Error loading watch list: $e');
+      // Initialize empty watch list on error
+      setState(() {
+        _watchList = {};
+      });
+    }
+  }
+
+  // Add getter for watched topics that match current topics
+  List<Topic> get _watchedTopics {
+    final Set<String> watchedHandles = _watchList.keys.toSet();
+    return _currentTopics
+        .where((topic) => watchedHandles.contains(topic.handle))
+        .toList();
   }
 }

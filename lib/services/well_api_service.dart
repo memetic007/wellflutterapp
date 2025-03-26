@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../models/topic.dart';
 
 class WellApiService {
   static const String baseUrl = 'http://localhost:5000';
@@ -412,6 +413,54 @@ class WellApiService {
         'error': e.toString(),
       };
     }
+  }
+
+  Future<Map<String, dynamic>> putWatchList(
+      Map<String, Topic> watchList) async {
+    // Convert the watch list map to a map of JSON objects
+    final watchListJson = jsonEncode(
+      Map.fromEntries(
+        watchList.entries.map(
+          (entry) => MapEntry(entry.key, entry.value.toJson()),
+        ),
+      ),
+    );
+
+    return _executeWithReconnection(
+      requestFn: () => http.post(
+        Uri.parse('$baseUrl/put_watch_list'),
+        headers: _getHeaders(),
+        body: jsonEncode({
+          'watch_list': watchListJson,
+        }),
+      ),
+      processResponseFn: (data) => {
+        'success': true,
+        'message': data['message'] ?? 'Successfully updated watch list',
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> getWatchList() async {
+    return _executeWithReconnection(
+      requestFn: () => http.get(
+        Uri.parse('$baseUrl/get_watch_list'),
+        headers: _getHeaders(),
+      ),
+      processResponseFn: (data) {
+        if (data['watch_list'] == '') {
+          // Return empty map if watch_list is empty string
+          return {
+            'success': true,
+            'watch_list': '{}',
+          };
+        }
+        return {
+          'success': true,
+          'watch_list': data['watch_list'],
+        };
+      },
+    );
   }
 
   Map<String, String> _getHeaders() {
