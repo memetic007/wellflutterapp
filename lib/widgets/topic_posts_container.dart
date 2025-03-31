@@ -103,66 +103,128 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
             itemBuilder: (context, index) {
               final topic = widget.topics[index];
               return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Topic header
+                  // Topic header with title and Watch/Forget checkboxes
                   Container(
                     padding: const EdgeInsets.all(8.0),
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      border:
-                          Border(bottom: BorderSide(color: Colors.grey[400]!)),
+                      color: Colors.grey[200],
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        topRight: Radius.circular(4),
+                      ),
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: '[${topic.handle}] ',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: topic.title,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        Text(
+                          topic.handle,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
                           ),
                         ),
+                        const Spacer(),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Text('Watch'),
                             Checkbox(
                               value: widget.isTopicWatched(topic),
-                              onChanged: (value) =>
-                                  widget.onWatchChanged(topic, value ?? false),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  widget.onWatchChanged(topic, value);
+                                }
+                              },
                             ),
                             const Text('Forget'),
                             Checkbox(
-                              value: _forgetStates[index] ?? false,
-                              onChanged: (value) =>
-                                  _handleForgetChecked(value, index, topic),
+                              value: !widget.isTopicWatched(topic),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  widget.onWatchChanged(topic, !value);
+                                }
+                              },
                             ),
                           ],
                         ),
                       ],
                     ),
                   ),
-                  // Posts
-                  ...topic.posts.map((post) => PostWidget(post: post)).toList(),
-                  // Add spacing between topics
-                  const SizedBox(height: 16.0),
+                  // Posts list
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: topic.posts.length,
+                    itemBuilder: (context, index) {
+                      final post = topic.posts[index];
+                      return PostWidget(post: post);
+                    },
+                  ),
+                  // Bottom bar with Reply button and Watch/Forget checkboxes
+                  Container(
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(4),
+                        bottomRight: Radius.circular(4),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Handle on the left
+                        Text(
+                          topic.handle,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        // Centered Reply button
+                        Expanded(
+                          child: Center(
+                            child: TextButton.icon(
+                              onPressed: () => _showReplyDialog(context, topic),
+                              icon: const Icon(Icons.reply, size: 16),
+                              label: const Text('Reply'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.deepPurple,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Watch/Forget checkboxes on the right
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Watch'),
+                            Checkbox(
+                              value: widget.isTopicWatched(topic),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  widget.onWatchChanged(topic, value);
+                                }
+                              },
+                            ),
+                            const Text('Forget'),
+                            Checkbox(
+                              value: !widget.isTopicWatched(topic),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  widget.onWatchChanged(topic, !value);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16), // Spacing between topics
                 ],
               );
             },
@@ -269,9 +331,9 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
         (offset / 500.0); // 500.0 is approximate viewport height
   }
 
-  void _showReplyDialog(BuildContext parentContext, Topic topic) {
+  void _showReplyDialog(BuildContext context, Topic topic) {
     showDialog(
-      context: parentContext,
+      context: context,
       builder: (dialogContext) => ReplyDialog(
         title: 'Reply to ${topic.handle}',
         conference: topic.handle,

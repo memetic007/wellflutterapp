@@ -241,7 +241,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                               TextSpan(
                                 children: [
                                   TextSpan(
-                                    text: '[${widget.topic.handle}] ',
+                                    text: '${widget.topic.handle} ',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
