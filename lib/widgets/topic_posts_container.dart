@@ -116,15 +116,29 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                     ),
                     child: Row(
                       children: [
-                        Text(
-                          topic.handle,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
+                        Expanded(
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '${topic.handle} ',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: topic.title,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        const Spacer(),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
