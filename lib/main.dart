@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'screens/command_interface.dart';
 import 'dart:io';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import 'models/command_storage.dart';
 
 const String displayLabel = 'WELL App Prototype v0.0.3';
 const String appVersion = 'v0.0.3';
@@ -64,8 +67,11 @@ class _WinAppState extends State<WinApp> {
   }
 }
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  Hive.registerAdapter(CommandStorageAdapter());
+  await Hive.openBox<CommandStorage>('command_box');
 
   // Handle multiple exit signals
   if (Platform.isWindows) {

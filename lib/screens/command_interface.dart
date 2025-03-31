@@ -18,6 +18,7 @@ import '../widgets/post_debug_dialog.dart';
 import '../services/well_api_service.dart';
 import '../widgets/text_editor_with_nav.dart';
 import '../widgets/new_topic_dialog.dart';
+import '../services/storage_service.dart';
 
 // Define intents at file level
 class NavigateLeftIntent extends Intent {
@@ -96,11 +97,14 @@ class _CommandInterfaceState extends State<CommandInterface>
 
   final _apiService = WellApiService();
 
+  final StorageService _storageService = StorageService();
+  String _lastExecutionTime = "No Previous Execution";
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 3,
+      length: 4,
       vsync: this,
     );
     _loadSavedCommand();
@@ -111,22 +115,30 @@ class _CommandInterfaceState extends State<CommandInterface>
   void didUpdateWidget(CommandInterface oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Ensure TabController is updated on hot reload
-    if (_tabController.length != 3) {
+    if (_tabController.length != 4) {
       _tabController.dispose();
       _tabController = TabController(
-        length: 3,
+        length: 4,
         vsync: this,
       );
     }
   }
 
   Future<void> _loadSavedCommand() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedCommand = prefs.getString(_commandSaveKey);
-    if (savedCommand != null) {
-      setState(() {
-        _commandController.text = savedCommand;
-      });
+    try {
+      final savedCommand = _storageService.getLastCommand();
+      if (savedCommand != null) {
+        setState(() {
+          _commandController.text = savedCommand.commandText ?? '';
+          if (savedCommand.jsonResult != null) {
+            print('Processing saved JSON result');
+            _processCommandResponse(jsonDecode(savedCommand.jsonResult!));
+          }
+          _lastExecutionTime = _storageService.getFormattedTimestamp();
+        });
+      }
+    } catch (e) {
+      print('Error loading saved command: $e');
     }
   }
 
@@ -230,11 +242,25 @@ class _CommandInterfaceState extends State<CommandInterface>
 
           // Save the command
           _saveCommand();
+
+          // After successful execution, save to Hive
+          Future<void> saveToHive() async {
+            await _storageService.saveCommand(
+              commandText: cmd,
+              jsonResult: jsonEncode(response),
+              isCommand: true,
+            );
+          }
+
+          saveToHive();
+
+          _lastExecutionTime = _storageService.getFormattedTimestamp();
         } else {
           _outputController.text += '\nError: ${response['error']}';
         }
       });
     } catch (e) {
+      print('Error in execute command: $e');
       setState(() {
         _outputController.text += '\nError: $e';
       });
@@ -335,16 +361,30 @@ class _CommandInterfaceState extends State<CommandInterface>
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
+        toolbarHeight: 80,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset(
-              'assets/sweeperimage.jpeg',
-              height: 48, // Doubled from 24 to 48 pixels
-              fit: BoxFit.contain,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/sweeperimage.jpeg',
+                  height: 48,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(width: 8),
+                const Text('WELL Sweeper'),
+              ],
             ),
-            const SizedBox(width: 8), // Add some spacing between image and text
-            const Text('WELL Sweeper'),
+            const SizedBox(height: 4),
+            Text(
+              _lastExecutionTime,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -497,8 +537,9 @@ class _CommandInterfaceState extends State<CommandInterface>
                 controller: _tabController,
                 tabs: [
                   const Tab(text: 'Conferences'),
-                  Tab(text: _topicsMenuLabel),
+                  const Tab(text: 'Topics Menu (all)'),
                   Tab(text: _allTopicsLabel),
+                  const Tab(text: 'Watch'),
                 ],
               ),
               Expanded(
@@ -591,124 +632,14 @@ class _CommandInterfaceState extends State<CommandInterface>
                       ],
                     ),
                     // All Posts tab
-                    Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Row(
-                            children: [
-                              if (_selectedConf != null) ...[
-                                const SizedBox(width: 8),
-                                ElevatedButton(
-                                  onPressed: () => _handleConfSelected(null),
-                                  child: const Text('All Confs'),
-                                ),
-                              ],
-                              Expanded(
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    ElevatedButton(
-                                      onPressed: _topicPostsContainerKey
-                                                  .currentState?.isScrolling !=
-                                              true
-                                          ? () {
-                                              final container =
-                                                  _topicPostsContainerKey
-                                                      .currentState;
-                                              if (container != null) {
-                                                container.scrollToIndex(0);
-                                              }
-                                            }
-                                          : null,
-                                      child: const Text('Home'),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    ElevatedButton(
-                                      onPressed: _currentTopicIndex > 0 &&
-                                              _topicPostsContainerKey
-                                                      .currentState
-                                                      ?.isScrolling !=
-                                                  true
-                                          ? () {
-                                              final container =
-                                                  _topicPostsContainerKey
-                                                      .currentState;
-                                              if (container != null) {
-                                                container.scrollToPrevious();
-                                              }
-                                            }
-                                          : null,
-                                      child: const Text('Previous'),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16.0),
-                                      child: Text(
-                                        _topicPostsContainerKey.currentState
-                                                ?.currentPositionText ??
-                                            'Topic 1 of ${_currentTopics.length}',
-                                        style: const TextStyle(fontSize: 16),
-                                      ),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: _currentTopicIndex <
-                                                  _currentTopics.length - 1 &&
-                                              _topicPostsContainerKey
-                                                      .currentState
-                                                      ?.isScrolling !=
-                                                  true
-                                          ? () {
-                                              final container =
-                                                  _topicPostsContainerKey
-                                                      .currentState;
-                                              if (container != null) {
-                                                container.scrollToNext();
-                                              }
-                                            }
-                                          : null,
-                                      child: const Text('Next'),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    ElevatedButton(
-                                      onPressed: _topicPostsContainerKey
-                                                  .currentState?.isScrolling !=
-                                              true
-                                          ? () {
-                                              final container =
-                                                  _topicPostsContainerKey
-                                                      .currentState;
-                                              if (container != null) {
-                                                container.scrollToIndex(
-                                                    _currentTopics.length - 1);
-                                              }
-                                            }
-                                          : null,
-                                      child: const Text('End'),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          child: TopicPostsContainer(
-                            key: _topicPostsContainerKey,
-                            topics: _currentTopics,
-                            onPrevious: _currentTopicIndex > 0
-                                ? _handlePreviousPressed
-                                : null,
-                            onNext:
-                                _currentTopicIndex < _currentTopics.length - 1
-                                    ? _handleNextPressed
-                                    : null,
-                            onForgetPressed: _handleForgetPressed,
-                            credentialsManager: _credentialsManager,
-                          ),
-                        ),
-                      ],
+                    TopicPostsContainer(
+                      key: _topicPostsContainerKey,
+                      topics: _currentTopics,
+                      credentialsManager: _credentialsManager,
+                      onForgetPressed: _handleForgetPressed,
                     ),
+                    // Watch tab
+                    _buildWatchList(),
                   ],
                 ),
               ),
@@ -908,7 +839,7 @@ class _CommandInterfaceState extends State<CommandInterface>
     );
   }
 
-  void _processCommandResponse(dynamic response) {
+  void _processCommandResponse(dynamic response) async {
     try {
       // Handle different response formats
       dynamic jsonData;
@@ -1065,11 +996,25 @@ class _CommandInterfaceState extends State<CommandInterface>
 
           // Switch to conferences tab after successful response
           _tabController.animateTo(0); // Index 0 is the conferences tab
+
+          // After successful execution, save to Hive
+          Future<void> saveToHive() async {
+            await _storageService.saveCommand(
+              commandText: 'getconf',
+              jsonResult: jsonEncode(response),
+              isCommand: false, // This indicates it's a Get Conf operation
+            );
+          }
+
+          saveToHive();
+
+          _lastExecutionTime = _storageService.getFormattedTimestamp();
         } else {
           _outputController.text += '\nError: ${response['error']}';
         }
       });
     } catch (e) {
+      print('Error in getConf: $e');
       setState(() {
         _outputController.text += '\nError: $e';
       });
@@ -1377,5 +1322,52 @@ class _CommandInterfaceState extends State<CommandInterface>
   void _refreshTopics() {
     // Refresh topics by getting the conference list again
     _getConfList();
+  }
+
+  void processJsonResult(String jsonResult) {
+    // Your existing JSON processing logic here
+    // This should be the same logic you use when receiving results from the server
+  }
+
+  Widget _buildWatchList() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () => _showButtonPressed(context, 'watchTabRefresh'),
+                child: const Text('Refresh'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () => _showButtonPressed(context, 'addToWatch'),
+                child: const Text('Add to Watch'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            children: const [
+              // Watch list items will go here
+              // For now, showing a placeholder message
+              Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Watch list functionality coming soon...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
