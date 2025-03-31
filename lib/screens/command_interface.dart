@@ -18,6 +18,7 @@ import '../widgets/post_debug_dialog.dart';
 import '../services/well_api_service.dart';
 import '../widgets/text_editor_with_nav.dart';
 import '../widgets/new_topic_dialog.dart';
+import '../services/storage_service.dart';
 
 // Define intents at file level
 class NavigateLeftIntent extends Intent {
@@ -100,6 +101,9 @@ class _CommandInterfaceState extends State<CommandInterface>
 
   final _apiService = WellApiService();
 
+  final StorageService _storageService = StorageService();
+  String _lastExecutionTime = "No Previous Execution";
+
   @override
   void initState() {
     super.initState();
@@ -130,11 +134,14 @@ class _CommandInterfaceState extends State<CommandInterface>
   }
 
   Future<void> _loadSavedCommand() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedCommand = prefs.getString(_commandSaveKey);
+    final savedCommand = _storageService.getLastCommand();
     if (savedCommand != null) {
       setState(() {
-        _commandController.text = savedCommand;
+        _commandController.text = savedCommand.commandText ?? '';
+        if (savedCommand.jsonResult != null) {
+          _processCommandResponse(jsonDecode(savedCommand.jsonResult!));
+        }
+        _lastExecutionTime = _storageService.getFormattedTimestamp();
       });
     }
   }
@@ -243,6 +250,19 @@ class _CommandInterfaceState extends State<CommandInterface>
           _outputController.text += '\nError: ${response['error']}';
         }
       });
+
+      // Move this outside setState
+      if (response['success']) {
+        await _storageService.saveCommand(
+          commandText: cmd,
+          jsonResult: jsonEncode(response),
+          isCommand: true,
+        );
+
+        setState(() {
+          _lastExecutionTime = _storageService.getFormattedTimestamp();
+        });
+      }
     } catch (e) {
       setState(() {
         _outputController.text += '\nError: $e';
@@ -344,16 +364,29 @@ class _CommandInterfaceState extends State<CommandInterface>
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
+        toolbarHeight: 80, // Increased height for timestamp
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset(
-              'assets/sweeperimage.jpeg',
-              height: 48, // Doubled from 24 to 48 pixels
-              fit: BoxFit.contain,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/sweeperimage.jpeg',
+                  height: 48,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(width: 8),
+                const Text('WELL Sweeper'),
+              ],
             ),
-            const SizedBox(width: 8), // Add some spacing between image and text
-            const Text('WELL Sweeper'),
+            Text(
+              _lastExecutionTime,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -1201,10 +1234,21 @@ class _CommandInterfaceState extends State<CommandInterface>
 
           // Switch to conferences tab after successful response
           _tabController.animateTo(0); // Index 0 is the conferences tab
-        } else {
-          _outputController.text += '\nError: ${response['error']}';
         }
       });
+
+      // Move this outside setState
+      if (response['success']) {
+        await _storageService.saveCommand(
+          commandText: 'getconf',
+          jsonResult: jsonEncode(response),
+          isCommand: false,
+        );
+
+        setState(() {
+          _lastExecutionTime = _storageService.getFormattedTimestamp();
+        });
+      }
     } catch (e) {
       setState(() {
         _outputController.text += '\nError: $e';

@@ -126,9 +126,6 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
           : widget.topic.handle;
       final topicNumber = parts.length > 1 ? parts.last : widget.topic.handle;
 
-      print(
-          '${value == true ? "Forgetting" : "Remembering"} topic: Conference=$conference, Topic=$topicNumber');
-
       // Ensure we have a connection
       if (!_apiService.isConnected) {
         final username = await widget.credentialsManager.getUsername();
@@ -361,7 +358,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
     showDialog(
       context: parentContext,
       builder: (dialogContext) => ReplyDialog(
-        title: 'Reply to ${widget.topic.handle}',
+        title: 'Reply to ${widget.topic.handle}\n${widget.topic.title}',
         conference: widget.topic.handle,
         topicNumber: widget.topic.handle,
         credentialsManager: widget.credentialsManager,

@@ -11,37 +11,19 @@ class StorageService {
     required String jsonResult,
     required bool isCommand,
   }) async {
-    try {
-      final box = Hive.box<CommandStorage>(boxName);
-      final storage = CommandStorage(
-        commandText: commandText,
-        jsonResult: jsonResult,
-        lastExecutionTime: DateTime.now(),
-        wasCommand: isCommand,
-      );
-      await box.put(storageKey, storage);
-      print(
-          'Saved to Hive - Command: $commandText, Result length: ${jsonResult.length}');
-    } catch (e) {
-      print('Error saving to Hive: $e');
-    }
+    final box = Hive.box<CommandStorage>(boxName);
+    final storage = CommandStorage(
+      commandText: commandText,
+      jsonResult: jsonResult,
+      lastExecutionTime: DateTime.now(),
+      wasCommand: isCommand,
+    );
+    await box.put(storageKey, storage);
   }
 
   CommandStorage? getLastCommand() {
-    try {
-      final box = Hive.box<CommandStorage>(boxName);
-      final storage = box.get(storageKey);
-      if (storage != null) {
-        print(
-            'Retrieved from Hive - Command: ${storage.commandText}, Result exists: ${storage.jsonResult != null}');
-      } else {
-        print('No stored command found in Hive');
-      }
-      return storage;
-    } catch (e) {
-      print('Error retrieving from Hive: $e');
-      return null;
-    }
+    final box = Hive.box<CommandStorage>(boxName);
+    return box.get(storageKey);
   }
 
   String getFormattedTimestamp() {

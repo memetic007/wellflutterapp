@@ -349,7 +349,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
     showDialog(
       context: context,
       builder: (dialogContext) => ReplyDialog(
-        title: 'Reply to ${topic.handle}',
+        title: 'Reply to ${topic.handle}\n${topic.title}',
         conference: topic.handle,
         topicNumber: topic.handle,
         credentialsManager: widget.credentialsManager,
@@ -370,9 +370,6 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
           ? parts.sublist(0, parts.length - 1).join('.')
           : topic.handle;
       final topicNumber = parts.length > 1 ? parts.last : topic.handle;
-
-      print(
-          '${value == true ? "Forgetting" : "Remembering"} topic: Conference=$conference, Topic=$topicNumber');
 
       // Ensure we have a connection
       if (!_apiService.isConnected) {
@@ -423,7 +420,6 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
             'Failed to ${value == true ? "forget" : "remember"} topic');
       }
     } catch (e) {
-      print('Error ${value == true ? "forgetting" : "remembering"} topic: $e');
       if (mounted) {
         setState(() {
           _forgetStates[index] =

@@ -14,7 +14,7 @@ class CommandStorage extends HiveObject {
   DateTime? lastExecutionTime;
 
   @HiveField(3)
-  bool? wasCommand;
+  bool? wasCommand; // true for Command, false for Get Conf
 
   CommandStorage({
     this.commandText,
