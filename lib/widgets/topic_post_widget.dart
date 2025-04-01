@@ -175,7 +175,6 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
             'Failed to ${value == true ? "forget" : "remember"} topic');
       }
     } catch (e) {
-      print('Error ${value == true ? "forgetting" : "remembering"} topic: $e');
       if (mounted) {
         setState(() {
           _isForgetChecked = value == true; // Reset checkbox to previous state
