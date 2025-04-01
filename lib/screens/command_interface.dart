@@ -1078,8 +1078,6 @@ class _CommandInterfaceState extends State<CommandInterface>
         throw Exception('Unexpected response format: ${response.runtimeType}');
       }
 
-      print('Decoded JSON data: $jsonData');
-
       // Process the conferences and topics
       List<Conf> processedConfs = [];
       List<Topic> allTopics = [];
@@ -1097,9 +1095,6 @@ class _CommandInterfaceState extends State<CommandInterface>
           if (conf.topics.isNotEmpty) {
             allTopics.addAll(conf.topics);
           }
-
-          print(
-              'Processed conference: ${conf.name} with ${conf.topics.length} topics');
         }
       }
 
@@ -1674,7 +1669,6 @@ class _CommandInterfaceState extends State<CommandInterface>
               );
             });
           } catch (e) {
-            print('Error parsing watch list: $e');
             // Initialize empty watch list on parse error
             setState(() {
               _watchList = {};
@@ -1687,15 +1681,13 @@ class _CommandInterfaceState extends State<CommandInterface>
           });
         }
       } else {
-        print('Failed to get watch list: ${result['error']}');
-        // Initialize empty watch list on error
+        // Remove this print statement
+        // print('Failed to get watch list: ${result['error']}');
         setState(() {
           _watchList = {};
         });
       }
     } catch (e) {
-      print('Error loading watch list: $e');
-      // Initialize empty watch list on error
       setState(() {
         _watchList = {};
       });
