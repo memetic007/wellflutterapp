@@ -23,6 +23,7 @@ class TopicPostsContainer extends StatefulWidget {
   final CredentialsManager credentialsManager;
   final bool Function(Topic) isTopicWatched;
   final Function(Topic, bool) onWatchChanged;
+  final Function(int)? onPositionChanged;
 
   const TopicPostsContainer({
     super.key,
@@ -33,6 +34,7 @@ class TopicPostsContainer extends StatefulWidget {
     required this.credentialsManager,
     required this.isTopicWatched,
     required this.onWatchChanged,
+    this.onPositionChanged,
   });
 
   @override
@@ -81,6 +83,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
       setState(() {
         _currentIndex = topItem.index;
       });
+      widget.onPositionChanged?.call(_currentIndex);
     }
   }
 

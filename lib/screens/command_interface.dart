@@ -669,11 +669,9 @@ class _CommandInterfaceState extends State<CommandInterface>
                                     ),
                                     const SizedBox(width: 8),
                                     ElevatedButton(
-                                      onPressed: _currentTopicIndex > 0 &&
-                                              _topicPostsContainerKey
-                                                      .currentState
-                                                      ?.isScrolling !=
-                                                  true
+                                      onPressed: _topicPostsContainerKey
+                                                  .currentState?.isScrolling !=
+                                              true
                                           ? () {
                                               final container =
                                                   _topicPostsContainerKey
@@ -689,9 +687,7 @@ class _CommandInterfaceState extends State<CommandInterface>
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 16.0),
                                       child: Text(
-                                        _topicPostsContainerKey.currentState
-                                                ?.currentPositionText ??
-                                            'Topic 1 of ${_currentTopics.length}',
+                                        'Topic ${_currentTopicIndex + 1} of ${_currentTopics.length}',
                                         style: const TextStyle(fontSize: 16),
                                       ),
                                     ),
@@ -743,6 +739,11 @@ class _CommandInterfaceState extends State<CommandInterface>
                             credentialsManager: _credentialsManager,
                             isTopicWatched: _isTopicWatched,
                             onWatchChanged: _handleWatchChanged,
+                            onPositionChanged: (index) {
+                              setState(() {
+                                _currentTopicIndex = index;
+                              });
+                            },
                           ),
                         ),
                       ],
@@ -782,10 +783,9 @@ class _CommandInterfaceState extends State<CommandInterface>
                                     ),
                                     const SizedBox(width: 8),
                                     ElevatedButton(
-                                      onPressed: _currentTopicIndex > 0 &&
-                                              _watchTabContainerKey.currentState
-                                                      ?.isScrolling !=
-                                                  true
+                                      onPressed: _watchTabContainerKey
+                                                  .currentState?.isScrolling !=
+                                              true
                                           ? () {
                                               final container =
                                                   _watchTabContainerKey
@@ -854,6 +854,11 @@ class _CommandInterfaceState extends State<CommandInterface>
                             credentialsManager: _credentialsManager,
                             isTopicWatched: _isTopicWatched,
                             onWatchChanged: _handleWatchChanged,
+                            onPositionChanged: (index) {
+                              setState(() {
+                                _currentTopicIndex = index;
+                              });
+                            },
                           ),
                         ),
                       ],
