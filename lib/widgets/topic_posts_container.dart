@@ -48,8 +48,8 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
   final FocusNode _focusNode = FocusNode();
   int _currentIndex = 0;
   bool _isScrolling = false;
-  final Map<int, bool> _forgetStates = {};
   final WellApiService _apiService = WellApiService();
+  final Map<String, bool> _forgetStates = {};
 
   @override
   void initState() {
@@ -156,12 +156,9 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                             ),
                             const Text('Forget'),
                             Checkbox(
-                              value: !widget.isTopicWatched(topic),
-                              onChanged: (value) {
-                                if (value != null) {
-                                  widget.onWatchChanged(topic, !value);
-                                }
-                              },
+                              value: _forgetStates[topic.handle] ?? false,
+                              onChanged: (value) =>
+                                  _handleForgetChecked(value, topic),
                             ),
                           ],
                         ),
@@ -229,12 +226,9 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                             ),
                             const Text('Forget'),
                             Checkbox(
-                              value: !widget.isTopicWatched(topic),
-                              onChanged: (value) {
-                                if (value != null) {
-                                  widget.onWatchChanged(topic, !value);
-                                }
-                              },
+                              value: _forgetStates[topic.handle] ?? false,
+                              onChanged: (value) =>
+                                  _handleForgetChecked(value, topic),
                             ),
                           ],
                         ),
@@ -361,9 +355,12 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
     );
   }
 
-  Future<void> _handleForgetChecked(bool? value, int index, Topic topic) async {
+  Future<void> _handleForgetChecked(bool? value, Topic topic) async {
+    if (value == null) return;
+
+    // Update the UI state immediately
     setState(() {
-      _forgetStates[index] = value ?? false;
+      _forgetStates[topic.handle] = value;
     });
 
     try {
@@ -390,7 +387,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
       }
 
       // Call the appropriate API based on checkbox state
-      final result = value == true
+      final result = value
           ? await _apiService.forgetTopic(
               conference: conference,
               topic: topicNumber,
@@ -401,37 +398,32 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
             );
 
       if (result['success']) {
-        // Show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Topic ${value == true ? "forgotten" : "remembered"}: ${topic.handle}'),
+                  'Topic ${value ? "forgotten" : "remembered"}: ${topic.handle}'),
               behavior: SnackBarBehavior.floating,
               width: MediaQuery.of(context).size.width * 0.3,
               duration: const Duration(seconds: 2),
             ),
           );
         }
-
-        // Call the onForgetPressed callback if provided
-        if (widget.onForgetPressed != null) {
-          widget.onForgetPressed!();
-        }
       } else {
         throw Exception(result['error'] ??
-            'Failed to ${value == true ? "forget" : "remember"} topic');
+            'Failed to ${value ? "forget" : "remember"} topic');
       }
     } catch (e) {
+      // On error, revert the checkbox state
       if (mounted) {
         setState(() {
-          _forgetStates[index] =
-              value == true; // Reset checkbox to previous state
+          _forgetStates[topic.handle] = !value; // Revert on error
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Error ${value == true ? "forgetting" : "remembering"} topic: $e'),
+            content:
+                Text('Error ${value ? "forgetting" : "remembering"} topic: $e'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             width: MediaQuery.of(context).size.width * 0.3,
