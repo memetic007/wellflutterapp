@@ -1106,6 +1106,8 @@ class _CommandInterfaceState extends State<CommandInterface>
         _currentConfs = processedConfs;
         _allTopics = allTopics;
         _currentTopics = allTopics;
+        _selectedConf =
+            null; // Reset selected conference when processing command response
 
         // Output detailed information about loaded conferences
         int confsWithTopics =
