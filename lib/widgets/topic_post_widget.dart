@@ -233,7 +233,7 @@ class _TopicPostWidgetState extends State<TopicPostWidget> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
-                            child: Text.rich(
+                            child: SelectableText.rich(
                               TextSpan(
                                 children: [
                                   TextSpan(

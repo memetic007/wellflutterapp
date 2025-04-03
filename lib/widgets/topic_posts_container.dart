@@ -120,7 +120,7 @@ class TopicPostsContainerState extends State<TopicPostsContainer> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text.rich(
+                          child: SelectableText.rich(
                             TextSpan(
                               children: [
                                 TextSpan(
