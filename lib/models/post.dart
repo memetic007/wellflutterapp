@@ -1,3 +1,5 @@
+import '../utils/string_utils.dart';
+
 class Post {
   String handle;
   String datetime;
@@ -47,7 +49,10 @@ class Post {
       datetime: json['datetime']?.toString() ?? '',
       username: json['username']?.toString() ?? '',
       pseud: json['pseud']?.toString() ?? '',
-      text: (json['text'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      text: (json['text'] as List?)
+              ?.map((e) => e.toString().unescapeJson())
+              .toList() ??
+          [],
     );
     post.datetime_iso8601 = json['datetime_iso8601']?.toString() ?? '';
     return post;

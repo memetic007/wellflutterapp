@@ -538,7 +538,7 @@ class _CommandInterfaceState extends State<CommandInterface>
               TabBar(
                 controller: _tabController,
                 tabs: [
-                  const Tab(text: 'Conferences'),
+                  Tab(text: _conferencesTabLabel),
                   Tab(text: _topicsMenuLabel),
                   Tab(text: _allTopicsLabel),
                   Tab(text: _watchTabLabel),
@@ -619,9 +619,31 @@ class _CommandInterfaceState extends State<CommandInterface>
                         ),
                         Expanded(
                           child: _selectedTopic == null
-                              ? TopicsView(
-                                  topics: _currentTopics,
-                                  onTopicSelected: _handleTopicSelected,
+                              ? Column(
+                                  children: [
+                                    if (_selectedConf != null &&
+                                        _currentTopics.isEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                            top:
+                                                32.0), // About an inch from top
+                                        child: Text(
+                                          'No new topics',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: Colors.grey[700],
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      Expanded(
+                                        child: TopicsView(
+                                          topics: _currentTopics,
+                                          onTopicSelected: _handleTopicSelected,
+                                        ),
+                                      ),
+                                  ],
                                 )
                               : TopicPostWidget(
                                   topic: _selectedTopic!,
@@ -1072,6 +1094,7 @@ class _CommandInterfaceState extends State<CommandInterface>
         // If response is already a Map, extract the 'response' field
         final responseStr = response['response'];
         if (responseStr is String) {
+          // First decode the JSON string into a Map/List
           jsonData = jsonDecode(responseStr);
         } else {
           jsonData = responseStr;
@@ -1092,11 +1115,7 @@ class _CommandInterfaceState extends State<CommandInterface>
         for (var confData in jsonData) {
           // Create a Conf object from the JSON data
           final conf = Conf.fromJson(confData);
-
-          // Always add the conference, even if it has no topics
           processedConfs.add(conf);
-
-          // Add topics to the allTopics list if there are any
           if (conf.topics.isNotEmpty) {
             allTopics.addAll(conf.topics);
           }
@@ -1707,5 +1726,13 @@ class _CommandInterfaceState extends State<CommandInterface>
     return _currentTopics
         .where((topic) => watchedHandles.contains(topic.handle))
         .toList();
+  }
+
+  String get _conferencesTabLabel {
+    int confsWithTopics =
+        _currentConfs.where((c) => c.topics.isNotEmpty).length;
+    return confsWithTopics > 0
+        ? 'Conferences ($confsWithTopics new)'
+        : 'Conferences';
   }
 }

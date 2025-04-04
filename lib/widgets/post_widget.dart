@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/post.dart';
 
 class PostWidget extends StatefulWidget {
@@ -16,6 +17,55 @@ class PostWidget extends StatefulWidget {
 }
 
 class _PostWidgetState extends State<PostWidget> {
+  // Regular expression to match URLs
+  static final _urlRegExp = RegExp(
+    r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)',
+    caseSensitive: false,
+  );
+
+  // Launch URL in browser
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  // Convert text to list of TextSpans with clickable URLs
+  List<TextSpan> _buildTextSpans(String text) {
+    final spans = <TextSpan>[];
+    var start = 0;
+
+    for (final match in _urlRegExp.allMatches(text)) {
+      // Add text before the URL
+      if (match.start > start) {
+        spans.add(TextSpan(text: text.substring(start, match.start)));
+      }
+
+      // Add the URL as a clickable span
+      final url = text.substring(match.start, match.end);
+      spans.add(
+        TextSpan(
+          text: url,
+          style: const TextStyle(
+            color: Colors.blue,
+            decoration: TextDecoration.underline,
+          ),
+          recognizer: TapGestureRecognizer()..onTap = () => _launchUrl(url),
+        ),
+      );
+
+      start = match.end;
+    }
+
+    // Add any remaining text after the last URL
+    if (start < text.length) {
+      spans.add(TextSpan(text: text.substring(start)));
+    }
+
+    return spans;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
@@ -61,15 +111,7 @@ class _PostWidgetState extends State<PostWidget> {
                     ),
                   ),
                 ],
-                ...widget.post.text.map((line) {
-                  return TextSpan(
-                    text: '$line\n',
-                    style: const TextStyle(
-                      height: 1.4,
-                      fontSize: 15,
-                    ),
-                  );
-                }).toList(),
+                ..._buildTextSpans(widget.post.text),
               ],
             ),
           ),

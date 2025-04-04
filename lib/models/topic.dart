@@ -1,4 +1,5 @@
 import 'post.dart';
+import '../utils/string_utils.dart';
 
 class Topic {
   String conf;
@@ -57,34 +58,19 @@ class Topic {
   }
 
   factory Topic.fromJson(Map<String, dynamic> json) {
-    // Use the conf field directly from JSON instead of parsing from handle
-    String conf = json['conf']?.toString() ?? '';
-    String handle = json['handle']?.toString() ?? '';
-
-    // If conf is empty but we have a handle, try to extract conf from handle
-    if (conf.isEmpty && handle.isNotEmpty) {
-      final parts = handle.split('.');
-      if (parts.length >= 2) {
-        conf = parts[0];
-      }
-    }
-
-    final topic = Topic(
-      conf: conf,
-      handle: handle,
-      title: json['title']?.toString() ?? '',
-      posts: (json['posts'] as List?)
-              ?.map(
-                  (postJson) => Post.fromJson(postJson as Map<String, dynamic>))
-              .toList() ??
-          [],
+    return Topic(
+      conf: json['conf'] as String,
+      handle: json['handle'] as String,
+      title: (json['title'] as String).unescapeJson(),
       number: json['number'] as int? ?? 0,
       lastPost: json['lastPost'] as int? ?? 0,
-      lastPostTime: json['lastPostTime']?.toString() ?? '',
-      lastPoster: json['lastPoster']?.toString() ?? '',
-      url: json['url']?.toString() ?? '',
+      lastPostTime: json['lastPostTime'] as String? ?? '',
+      lastPoster: json['lastPoster'] as String? ?? '',
+      url: json['url'] as String? ?? '',
+      posts: (json['posts'] as List<dynamic>?)
+              ?.map((p) => Post.fromJson(p as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
-
-    return topic;
   }
 }
