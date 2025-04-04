@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/post.dart';
 
@@ -19,13 +20,19 @@ class PostWidget extends StatefulWidget {
 class _PostWidgetState extends State<PostWidget> {
   // Regular expression to match URLs
   static final _urlRegExp = RegExp(
-    r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)',
+    r'(?:(?:https?:\/\/|www\.)\S+\.[a-zA-Z]{2,}(?:\/[^\s]*)?|\S+\.(?:com|net|org|ai|dev|io))\b',
     caseSensitive: false,
   );
 
   // Launch URL in browser
   Future<void> _launchUrl(String url) async {
-    final uri = Uri.parse(url);
+    // Add https:// if the URL doesn't start with a protocol
+    final urlString = url.startsWith('http')
+        ? url
+        : url.startsWith('www.')
+            ? 'https://$url'
+            : 'https://$url';
+    final uri = Uri.parse(urlString);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -49,7 +56,6 @@ class _PostWidgetState extends State<PostWidget> {
           text: url,
           style: const TextStyle(
             color: Colors.blue,
-            decoration: TextDecoration.underline,
           ),
           recognizer: TapGestureRecognizer()..onTap = () => _launchUrl(url),
         ),
@@ -111,7 +117,10 @@ class _PostWidgetState extends State<PostWidget> {
                     ),
                   ),
                 ],
-                ..._buildTextSpans(widget.post.text),
+                ...(widget.post.text is List<String>
+                    ? _buildTextSpans(
+                        (widget.post.text as List<String>).join('\n'))
+                    : _buildTextSpans(widget.post.text.toString())),
               ],
             ),
           ),

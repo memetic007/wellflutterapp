@@ -4,6 +4,7 @@ import 'text_editor_with_nav.dart';
 import '../services/post_debug_service.dart';
 import '../models/post_debug_entry.dart';
 import '../services/well_api_service.dart';
+import 'package:flutter/services.dart';
 
 class ReplyDialog extends StatefulWidget {
   final String title;
@@ -239,5 +240,30 @@ class _ReplyDialogState extends State<ReplyDialog> {
         });
       }
     }
+  }
+
+  Widget _buildReplyField() {
+    return TextField(
+      controller: _replyController,
+      maxLines: null,
+      minLines: 10,
+      autofocus: true,
+      // Enable spell checking
+      spellCheckConfiguration: SpellCheckConfiguration(
+        // Enable spell check by default
+        spellCheckEnabled: true,
+        // Specify supported languages - you can add more as needed
+        misspelledTextStyle: const TextStyle(
+          decoration: TextDecoration.underline,
+          decorationColor: Colors.red,
+          decorationStyle: TextDecorationStyle.wavy,
+        ),
+      ),
+      decoration: const InputDecoration(
+        hintText: 'Type your reply here...',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.all(12),
+      ),
+    );
   }
 }
