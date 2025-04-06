@@ -24,149 +24,80 @@ class TextEditorWithNav extends StatefulWidget {
 }
 
 class _TextEditorWithNavState extends State<TextEditorWithNav> {
-  final FocusNode _textFieldFocusNode = FocusNode();
-  final FocusNode _keyboardListenerFocusNode = FocusNode();
+  final FocusNode _focusNode = FocusNode();
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.autofocus) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _textFieldFocusNode.requestFocus();
-      });
+  Widget build(BuildContext context) {
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent) {
+          _handleKeyEvent(event);
+        }
+        return KeyEventResult.ignored;
+      },
+      child: TextField(
+        controller: widget.controller,
+        autofocus: widget.autofocus,
+        style: widget.style,
+        decoration: widget.decoration,
+        maxLines: widget.maxLines,
+        expands: widget.expands,
+        focusNode: _focusNode,
+        textAlignVertical: TextAlignVertical.top,
+      ),
+    );
+  }
+
+  void _handleKeyEvent(KeyEvent event) {
+    final int currentPosition = widget.controller.selection.baseOffset;
+    final String text = widget.controller.text;
+
+    if (event.physicalKey == PhysicalKeyboardKey.numpad4) {
+      // Left arrow
+      if (currentPosition > 0) {
+        widget.controller.selection = TextSelection.collapsed(
+          offset: currentPosition - 1,
+        );
+      }
+    } else if (event.physicalKey == PhysicalKeyboardKey.numpad6) {
+      // Right arrow
+      if (currentPosition < text.length) {
+        widget.controller.selection = TextSelection.collapsed(
+          offset: currentPosition + 1,
+        );
+      }
+    } else if (event.physicalKey == PhysicalKeyboardKey.numpad8) {
+      // Up arrow
+      final int lineStart = text.lastIndexOf('\n', currentPosition - 1) + 1;
+      final int prevLineStart = text.lastIndexOf('\n', lineStart - 2) + 1;
+      final int column = currentPosition - lineStart;
+      final int newPosition =
+          prevLineStart + column.clamp(0, lineStart - prevLineStart - 1);
+      widget.controller.selection =
+          TextSelection.collapsed(offset: newPosition.clamp(0, text.length));
+    } else if (event.physicalKey == PhysicalKeyboardKey.numpad2) {
+      // Down arrow
+      final int lineStart = text.lastIndexOf('\n', currentPosition - 1) + 1;
+      final int nextLineStart = text.indexOf('\n', currentPosition);
+      if (nextLineStart != -1) {
+        final int nextNextLineStart = text.indexOf('\n', nextLineStart + 1);
+        final int column = currentPosition - lineStart;
+        final int newPosition = nextLineStart +
+            1 +
+            column.clamp(
+                0,
+                (nextNextLineStart == -1 ? text.length : nextNextLineStart) -
+                    nextLineStart -
+                    1);
+        widget.controller.selection =
+            TextSelection.collapsed(offset: newPosition);
+      }
     }
   }
 
   @override
   void dispose() {
-    _textFieldFocusNode.dispose();
-    _keyboardListenerFocusNode.dispose();
+    _focusNode.dispose();
     super.dispose();
-  }
-
-  void _handleArrowKey(LogicalKeyboardKey key) {
-    final selection = widget.controller.selection;
-    final text = widget.controller.text;
-    final lines = text.split('\n');
-    int currentLine = 0;
-    int currentColumn = selection.start;
-
-    // Find current line and column
-    for (var i = 0; i < lines.length; i++) {
-      if (currentColumn > lines[i].length) {
-        currentColumn -= lines[i].length + 1; // +1 for newline
-        currentLine++;
-      } else {
-        break;
-      }
-    }
-
-    int newOffset = selection.start;
-
-    switch (key) {
-      case LogicalKeyboardKey.arrowLeft:
-        if (selection.start > 0) {
-          newOffset = selection.start - 1;
-        }
-        break;
-      case LogicalKeyboardKey.arrowRight:
-        if (selection.start < text.length) {
-          newOffset = selection.start + 1;
-        }
-        break;
-      case LogicalKeyboardKey.arrowUp:
-        if (currentLine > 0) {
-          final previousLineLength = lines[currentLine - 1].length;
-          final previousLineStart = _getLineStart(text, currentLine - 1);
-          newOffset = previousLineStart +
-              (currentColumn < previousLineLength
-                  ? currentColumn
-                  : previousLineLength);
-        }
-        break;
-      case LogicalKeyboardKey.arrowDown:
-        if (currentLine < lines.length - 1) {
-          final nextLineLength = lines[currentLine + 1].length;
-          final nextLineStart = _getLineStart(text, currentLine + 1);
-          newOffset = nextLineStart +
-              (currentColumn < nextLineLength ? currentColumn : nextLineLength);
-        }
-        break;
-      case LogicalKeyboardKey.home:
-        newOffset = _getLineStart(text, currentLine);
-        break;
-      case LogicalKeyboardKey.end:
-        newOffset =
-            _getLineStart(text, currentLine) + lines[currentLine].length;
-        break;
-      default:
-        return;
-    }
-
-    widget.controller.selection = TextSelection.collapsed(offset: newOffset);
-  }
-
-  void _handleDelete() {
-    final selection = widget.controller.selection;
-    final text = widget.controller.text;
-
-    // Check if we have a valid selection and text
-    if (selection.start < 0 || selection.start >= text.length) {
-      return;
-    }
-
-    if (selection.start < text.length) {
-      final newText =
-          text.replaceRange(selection.start, selection.start + 1, '');
-      widget.controller.value = TextEditingValue(
-        text: newText,
-        selection: TextSelection.collapsed(offset: selection.start),
-      );
-    }
-  }
-
-  int _getLineStart(String text, int lineNumber) {
-    final lines = text.split('\n');
-    int offset = 0;
-    for (var i = 0; i < lineNumber; i++) {
-      offset += lines[i].length + 1; // +1 for newline
-    }
-    return offset;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return RawKeyboardListener(
-      focusNode: _keyboardListenerFocusNode,
-      onKey: (RawKeyEvent event) {
-        if (event is RawKeyDownEvent) {
-          if (event.physicalKey == PhysicalKeyboardKey.numpad4) {
-            _handleArrowKey(LogicalKeyboardKey.arrowLeft);
-          } else if (event.physicalKey == PhysicalKeyboardKey.numpad6) {
-            _handleArrowKey(LogicalKeyboardKey.arrowRight);
-          } else if (event.physicalKey == PhysicalKeyboardKey.numpad8) {
-            _handleArrowKey(LogicalKeyboardKey.arrowUp);
-          } else if (event.physicalKey == PhysicalKeyboardKey.numpad2) {
-            _handleArrowKey(LogicalKeyboardKey.arrowDown);
-          } else if (event.physicalKey == PhysicalKeyboardKey.numpad7) {
-            _handleArrowKey(LogicalKeyboardKey.home);
-          } else if (event.physicalKey == PhysicalKeyboardKey.numpad1) {
-            _handleArrowKey(LogicalKeyboardKey.end);
-          } else if (event.physicalKey == PhysicalKeyboardKey.numpadDecimal) {
-            _handleDelete();
-          }
-        }
-      },
-      child: TextField(
-        controller: widget.controller,
-        focusNode: _textFieldFocusNode,
-        style: widget.style,
-        decoration: widget.decoration,
-        maxLines: widget.maxLines,
-        expands: widget.expands,
-        keyboardType: TextInputType.multiline,
-        textAlignVertical: TextAlignVertical.top,
-      ),
-    );
   }
 }

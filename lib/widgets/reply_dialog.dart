@@ -85,13 +85,13 @@ class _ReplyDialogState extends State<ReplyDialog> {
                   fontFamily: 'Courier New',
                   fontSize: 14,
                 ),
+                maxLines: null,
+                expands: true,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: 'Type your reply here...',
                   contentPadding: EdgeInsets.all(12),
                 ),
-                maxLines: null,
-                expands: true,
               ),
             ),
             const SizedBox(height: 8),
@@ -240,30 +240,5 @@ class _ReplyDialogState extends State<ReplyDialog> {
         });
       }
     }
-  }
-
-  Widget _buildReplyField() {
-    return TextField(
-      controller: _replyController,
-      maxLines: null,
-      minLines: 10,
-      autofocus: true,
-      // Enable spell checking
-      spellCheckConfiguration: SpellCheckConfiguration(
-        // Enable spell check by default
-        spellCheckEnabled: true,
-        // Specify supported languages - you can add more as needed
-        misspelledTextStyle: const TextStyle(
-          decoration: TextDecoration.underline,
-          decorationColor: Colors.red,
-          decorationStyle: TextDecorationStyle.wavy,
-        ),
-      ),
-      decoration: const InputDecoration(
-        hintText: 'Type your reply here...',
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.all(12),
-      ),
-    );
   }
 }
