@@ -4,6 +4,7 @@
 
 #include "flutter_window.h"
 #include "utils.h"
+#include "signal_handler.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
@@ -32,8 +33,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
   window.SetQuitOnClose(true);
 
+  // Set up Windows message handling
   ::MSG msg;
   while (::GetMessage(&msg, nullptr, 0, 0)) {
+    if (msg.message == WM_CLOSE) {
+      HandleWindowsClose();
+      break;
+    }
     ::TranslateMessage(&msg);
     ::DispatchMessage(&msg);
   }
