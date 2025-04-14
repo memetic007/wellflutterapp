@@ -121,12 +121,12 @@ class _ConfViewState extends State<ConfView> {
                             color: Colors.blue,
                           ),
                         ),
-                        if (conf.topics.isNotEmpty)
+                        if (conf.newTopicCount > 0)
                           TextSpan(
-                            text: ' (${conf.topics.length} topics) ',
+                            text: ' (${conf.newTopicCount} new) ',
                             style: TextStyle(
                               fontStyle: FontStyle.italic,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.normal,
                               color: Colors.grey[850],
                             ),
                           ),

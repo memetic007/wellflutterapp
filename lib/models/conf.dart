@@ -2,12 +2,16 @@ import 'topic.dart';
 
 class Conf {
   final String name;
+  final String handle;
   final String title;
+  final int newTopicCount;
   final List<Topic> topics;
 
   Conf({
     required this.name,
+    required this.handle,
     required this.title,
+    required this.newTopicCount,
     required this.topics,
   });
 
@@ -15,7 +19,9 @@ class Conf {
   factory Conf.empty() {
     return Conf(
       name: "",
+      handle: "",
       title: "",
+      newTopicCount: 0,
       topics: [],
     );
   }
@@ -27,7 +33,9 @@ class Conf {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
+      'handle': handle,
       'title': title,
+      'newTopicCount': newTopicCount,
       'topics': topics.map((topic) => topic.toJson()).toList(),
     };
   }
@@ -49,7 +57,9 @@ class Conf {
 
     return Conf(
       name: confName,
+      handle: json['handle']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
+      newTopicCount: json['newTopicCount'] as int? ?? 0,
       topics: confTopics,
     );
   }
@@ -74,7 +84,9 @@ class Conf {
           allTopics.where((topic) => topic.conf == confName).toList();
       return Conf(
         name: confName,
+        handle: '', // Handle might not be available in this context
         title: '', // Conference title might not be available
+        newTopicCount: 0, // Default to 0 if not available
         topics: confTopics,
       );
     }).toList();

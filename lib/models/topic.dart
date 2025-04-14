@@ -11,6 +11,7 @@ class Topic {
   String lastPostTime;
   String lastPoster;
   String url;
+  String lastUpdateISO8601;
 
   Topic({
     required this.conf,
@@ -22,6 +23,7 @@ class Topic {
     required this.lastPostTime,
     required this.lastPoster,
     required this.url,
+    required this.lastUpdateISO8601,
   }) : posts = posts ?? [];
 
   // Factory constructor for empty topic
@@ -36,6 +38,7 @@ class Topic {
       lastPostTime: "",
       lastPoster: "",
       url: "",
+      lastUpdateISO8601: "",
     );
   }
 
@@ -54,6 +57,7 @@ class Topic {
       'lastPostTime': lastPostTime,
       'lastPoster': lastPoster,
       'url': url,
+      'lastUpdateISO8601': lastUpdateISO8601,
     };
   }
 
@@ -67,6 +71,7 @@ class Topic {
       lastPostTime: json['lastPostTime'] as String? ?? '',
       lastPoster: json['lastPoster'] as String? ?? '',
       url: json['url'] as String? ?? '',
+      lastUpdateISO8601: json['lastUpdateISO8601'] as String? ?? '',
       posts: (json['posts'] as List<dynamic>?)
               ?.map((p) => Post.fromJson(p as Map<String, dynamic>))
               .toList() ??

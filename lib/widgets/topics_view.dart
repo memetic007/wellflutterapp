@@ -22,6 +22,16 @@ class _TopicsViewState extends State<TopicsView> {
   final FocusNode _focusNode = FocusNode();
   int _selectedIndex = 0;
 
+  String _formatDate(String iso8601) {
+    if (iso8601.isEmpty) return '';
+    try {
+      final date = DateTime.parse(iso8601);
+      return '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${date.year.toString().substring(2)}';
+    } catch (e) {
+      return '';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -115,34 +125,50 @@ class _TopicsViewState extends State<TopicsView> {
                   margin:
                       const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                   child: ListTile(
-                    title: RichText(
-                      text: TextSpan(
-                        style: DefaultTextStyle.of(context).style,
-                        children: [
-                          TextSpan(
-                            text: '[${topic.handle}] ',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              style: DefaultTextStyle.of(context).style,
+                              children: [
+                                TextSpan(
+                                  text: '${topic.handle} ',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: '(${topic.posts.length} new) ',
+                                  style: TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                    fontWeight: FontWeight.normal,
+                                    color: Colors.grey[850],
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: topic.title,
+                                  style: const TextStyle(
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          TextSpan(
-                            text: '(${topic.posts.length} new posts) ',
-                            style: TextStyle(
-                              fontStyle: FontStyle.italic,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey[850],
-                            ),
+                        ),
+                        Text(
+                          _formatDate(topic.lastUpdateISO8601),
+                          style: TextStyle(
+                            color: Colors.grey[850],
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.normal,
                           ),
-                          TextSpan(
-                            text: topic.title,
-                            style: const TextStyle(
-                              color: Colors.black87,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                     subtitle: null,
                     onTap: () {

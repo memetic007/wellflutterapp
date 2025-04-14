@@ -89,7 +89,7 @@ class _CommandInterfaceState extends State<CommandInterface>
       : 'Topics Menu (${_selectedConf!.name})';
 
   String get _allTopicsLabel => _selectedConf == null
-      ? 'New Posts (all)'
+      ? 'New Posts (${_currentTopics.where((topic) => topic.posts.isNotEmpty).length} new)'
       : 'All Posts (${_selectedConf!.name})';
 
   String get _watchTabLabel => 'Watch (${_watchedTopics.length} topics)';
@@ -709,7 +709,7 @@ class _CommandInterfaceState extends State<CommandInterface>
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 16.0),
                                       child: Text(
-                                        'Topic ${_currentTopicIndex + 1} of ${_currentTopics.length}',
+                                        'Topic ${_currentTopicIndex + 1} of ${_currentTopics.where((topic) => topic.posts.isNotEmpty).length}',
                                         style: const TextStyle(fontSize: 16),
                                       ),
                                     ),
@@ -757,7 +757,9 @@ class _CommandInterfaceState extends State<CommandInterface>
                         Expanded(
                           child: TopicPostsContainer(
                             key: _topicPostsContainerKey,
-                            topics: _currentTopics,
+                            topics: _currentTopics
+                                .where((topic) => topic.posts.isNotEmpty)
+                                .toList(),
                             credentialsManager: _credentialsManager,
                             isTopicWatched: _isTopicWatched,
                             onWatchChanged: _handleWatchChanged,
@@ -1163,7 +1165,7 @@ class _CommandInterfaceState extends State<CommandInterface>
       if (newTopicsMap.containsKey(handle)) {
         // Update watched topic with new content but keep posts empty
         final newTopic = newTopicsMap[handle]!;
-        _watchList[handle] = Topic(
+        final watchedTopic = Topic(
           conf: newTopic.conf,
           handle: newTopic.handle,
           title: newTopic.title,
@@ -1172,8 +1174,9 @@ class _CommandInterfaceState extends State<CommandInterface>
           lastPostTime: newTopic.lastPostTime,
           lastPoster: newTopic.lastPoster,
           url: newTopic.url,
-          posts: [], // Keep posts empty in watch list
+          lastUpdateISO8601: newTopic.lastUpdateISO8601,
         );
+        _watchList[handle] = watchedTopic;
       }
     }
   }
@@ -1627,7 +1630,7 @@ class _CommandInterfaceState extends State<CommandInterface>
           lastPostTime: topic.lastPostTime,
           lastPoster: topic.lastPoster,
           url: topic.url,
-          posts: [], // Empty posts list
+          lastUpdateISO8601: topic.lastUpdateISO8601,
         );
 
         // Add to watch list using handle as key
@@ -1729,10 +1732,10 @@ class _CommandInterfaceState extends State<CommandInterface>
   }
 
   String get _conferencesTabLabel {
-    int confsWithTopics =
-        _currentConfs.where((c) => c.topics.isNotEmpty).length;
-    return confsWithTopics > 0
-        ? 'Conferences ($confsWithTopics new)'
+    int totalNewTopics =
+        _currentConfs.fold(0, (sum, conf) => sum + conf.newTopicCount);
+    return totalNewTopics > 0
+        ? 'Conferences ($totalNewTopics new)'
         : 'Conferences';
   }
 }

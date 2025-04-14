@@ -32,6 +32,7 @@ class JsonProcessor {
           lastPostTime: topicJson['lastPostTime'] as String? ?? '',
           lastPoster: topicJson['lastPoster'] as String? ?? '',
           url: topicJson['url'] as String? ?? '',
+          lastUpdateISO8601: topicJson['lastUpdateISO8601'] as String? ?? '',
         );
 
         // Add posts to the topic
@@ -73,6 +74,7 @@ class JsonProcessor {
       lastPostTime: json['lastPostTime'] as String? ?? '',
       lastPoster: json['lastPoster'] as String? ?? '',
       url: json['url'] as String? ?? '',
+      lastUpdateISO8601: json['lastUpdateISO8601'] as String? ?? '',
       posts: (json['posts'] as List?)
           ?.map((p) => Post.fromJson(p as Map<String, dynamic>))
           .toList(),
